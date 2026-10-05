@@ -842,7 +842,7 @@ export function useShopCodes(enabled = true) {
 
 /** Linko do'konlar sinxronining oxirgi natijasi. */
 export function useShopsSyncInfo() {
-  const [info, setInfo] = useState<{ lastSyncAt: string | null; lastReport: string | null }>({ lastSyncAt: null, lastReport: null })
+  const [info, setInfo] = useState<{ lastSyncAt: string | null; lastReport: string | null; priceListIds: number[] }>({ lastSyncAt: null, lastReport: null, priceListIds: [] })
   useEffect(
     () =>
       onSnapshot(
@@ -850,6 +850,7 @@ export function useShopsSyncInfo() {
         (snap) => setInfo({
           lastSyncAt: typeof snap.data()?.lastSyncAt === 'string' ? snap.data()?.lastSyncAt : null,
           lastReport: typeof snap.data()?.lastReport === 'string' ? snap.data()?.lastReport : null,
+          priceListIds: Array.isArray(snap.data()?.priceListIds) ? snap.data()?.priceListIds.map(Number) : [],
         }),
         () => {},
       ),

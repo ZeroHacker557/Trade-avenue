@@ -15,7 +15,7 @@ import { homeBannersSave } from '../_lib/actions/home.js'
 import { dailyGet, dailyPreview, dailySave, dailySendNow, dailyTest } from '../_lib/actions/daily.js'
 import { settingsSave, settingsTestGroup } from '../_lib/actions/settings.js'
 import {
-  linkoAutoLink, linkoLink, linkoPing, linkoPull, linkoSettingsSave, linkoStatus,
+  linkoAutoLink, linkoImport, linkoLink, linkoPing, linkoPull, linkoSettingsSave, linkoStatus,
 } from '../_lib/actions/linko.js'
 import { linkoPushOrder, linkoPushOrders } from '../_lib/actions/linko-orders.js'
 import { courierDeliver, courierTake } from '../_lib/actions/courier.js'
@@ -170,6 +170,7 @@ const HANDLERS: Record<string, Handler> = {
   'linko.pull': (staff, body) => (requireCatalogAccess(staff), linkoPull(staff, body)),
   'linko.link': (staff, body) => (requireCatalogAccess(staff), linkoLink(staff, body)),
   'linko.autoLink': (staff) => (requireCatalogAccess(staff), linkoAutoLink()),
+  'linko.import': (staff, body) => (requireCatalogAccess(staff), linkoImport(staff, body)),
   'linko.pushOrders': (staff, body) => (requireCatalogAccess(staff), linkoPushOrders(staff, body)),
   'linko.settings': (staff, body) => {
     if (staff.role !== 'owner') throw new Error('Faqat ega ulanishni o‘zgartira oladi')

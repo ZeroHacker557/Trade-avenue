@@ -84,6 +84,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   'linko.pull': 'Linko sinxron',
   'linko.link': 'Linko bog‘lash',
   'linko.autoLink': 'Linko avtomatik bog‘lash',
+  'linko.import': 'Linko’dan katalog yaratildi',
   'linko.pushOrders': 'Buyurtmalar Linko’ga',
   'linko.settings': 'Linko sozlamasi',
   'backup.run': 'Zaxira nusxa olindi',

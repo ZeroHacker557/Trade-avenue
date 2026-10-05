@@ -836,3 +836,75 @@ export async function linkoPing(): Promise<Result> {
   const body = await linkoGet<{ count?: number }>('products_count/', {}, settings)
   return { ok: true, products: Number(body?.count) || 0 }
 }
+
+/**
+ * Linko katalogidan do'kon mahsulotlarini ommaviy yaratadi.
+ *
+ * Har BOG'LANMAGAN pozitsiyadan bitta mahsulot: nomi, asosiy narxi va
+ * qoldig'i Linko'dan, kategoriya — Linko'dagi mahsulot turi (yo'q bo'lsa
+ * «Boshqa»). Yo'q kategoriyalar o'zi yaratiladi. Rasm va tavsif keyin
+ * admin panelda qo'shiladi. Narxsiz pozitsiya o'tkazib yuboriladi;
+ * `inStockOnly` bilan — qoldig'i yo'qlari ham.
+ *
+ * Qayta bosish xavfsiz: bog'langan pozitsiyaga tegilmaydi.
+ */
+export async function linkoImport(_staff: unknown, body: Record<string, unknown> = {}): Promise<Result> {
+  const inStockOnly = body.inStockOnly === true
+  const db = await adminDb()
+  const [mirrorSnap, catSnap] = await Promise.all([
+    db.collection(MIRROR).get(),
+    db.collection('categories').get(),
+  ])
+
+  const categories = new Map(catSnap.docs.map((doc) => [key(String(doc.data().name || '')), String(doc.data().name || '')]))
+  const now = new Date().toISOString()
+  const writes: Write[] = []
+  const created: string[] = []
+  let skipped = 0
+
+  for (const doc of mirrorSnap.docs) {
+    const row = doc.data() as MirrorDoc
+    if (rowProducts(row).length) continue
+    if (!(num(row.price) > 0) || (inStockOnly && !(num(row.stock) > 0))) {
+      skipped++
+      continue
+    }
+    const typeName = text(row.typeName) || 'Boshqa'
+    let category = categories.get(key(typeName))
+    if (!category) {
+      category = typeName
+      categories.set(key(typeName), typeName)
+      const catId = newNumericId()
+      writes.push({ ref: db.collection('categories').doc(catId), data: { id: catId, name: typeName, nameRu: '', icon: 'package' } })
+    }
+    const id = newNumericId()
+    writes.push({
+      ref: db.collection('products').doc(id),
+      data: {
+        id: Number(id),
+        name: text(row.name) || `#${row.linkoId}`,
+        price: num(row.price),
+        oldPrice: null,
+        category,
+        sectionId: null,
+        images: [],
+        thumbs: [],
+        optimized: [],
+        variantSources: [],
+        description: '',
+        stock: Math.max(0, Math.round(num(row.stock))),
+        lowStockAlerted: num(row.stock) <= LOW_STOCK_AT,
+        popular: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    })
+    writes.push({ ref: doc.ref, data: { productIds: [id], productId: id, primary: true, updatedAt: now } })
+    created.push(id)
+  }
+
+  await commitAll(writes)
+  // Do'konlar narx ro'yxatlari — yangi mahsulotlar uchun
+  for (let i = 0; i < created.length; i += 200) await syncListPrices(created.slice(i, i + 200))
+  return { ok: true, created: created.length, skipped }
+}

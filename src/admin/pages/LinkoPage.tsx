@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
-  Check, CheckCircle2, Link2, Link2Off, Loader2, PlugZap, Plus, RefreshCw, Search, Send, Star,
-  TriangleAlert,
+  Check, CheckCircle2, Download, Link2, Link2Off, Loader2, PlugZap, Plus, RefreshCw, Search, Send, Star,
+  Store, TriangleAlert,
 } from 'lucide-react'
 import { apiPost } from '../lib/api'
-import { useCategories, useLinkoProducts, useProducts, useSettings, type LinkoRow } from '../lib/live'
+import { useCategories, useLinkoProducts, useProducts, useSettings, useShops, useShopsSyncInfo, type LinkoRow } from '../lib/live'
 import { useToast } from '../components/Toast'
 import { bestMatches, SUGGEST_AT, similarity } from '../lib/match'
 import { Modal } from '../components/Modal'
@@ -37,6 +37,8 @@ export function LinkoPage() {
   const { rows, loading } = useLinkoProducts()
   const { products } = useProducts()
   const { categories } = useCategories()
+  const { shops } = useShops()
+  const shopSync = useShopsSyncInfo()
   const { show, node: toast } = useToast()
 
   const [busy, setBusy] = useState('')
@@ -131,6 +133,18 @@ export function LinkoPage() {
       String((result as { report?: string }).report || 'Sinxronlandi'),
     )
 
+  /** Bog'lanmagan pozitsiyalardan katalog mahsulotlari (kategoriya — Linko turi). */
+  const importAll = () =>
+    run('import', { action: 'linko.import', inStockOnly: true }, (result: never) => {
+      const r = result as { created?: number; skipped?: number }
+      return `${r.created ?? 0} ta mahsulot yaratildi${r.skipped ? `, ${r.skipped} tasi o‘tkazib yuborildi (narxi yoki qoldig‘i yo‘q)` : ''}`
+    })
+
+  const syncShops = (full: boolean) =>
+    run('shops', { action: 'shops.sync', full }, (result: never) =>
+      String((result as { report?: string }).report || 'Do‘konlar yangilandi'),
+    )
+
   const autoLink = () =>
     run('auto', { action: 'linko.autoLink' }, (result: never) =>
       `${(result as { linked?: number }).linked ?? 0} ta pozitsiya nomi bo‘yicha bog‘landi`,
@@ -203,6 +217,15 @@ export function LinkoPage() {
               {busy === 'auto' ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
               Nomi bo‘yicha bog‘lash
             </button>
+            <button
+              className="adm-btn adm-btn--ghost"
+              onClick={importAll}
+              disabled={busy === 'import' || rows.length === linked}
+              title="Bog‘lanmagan, narxi va qoldig‘i bor pozitsiyalardan katalog mahsulotlari yaratiladi"
+            >
+              {busy === 'import' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Katalogga import ({rows.length - linked})
+            </button>
           </div>
 
           {settings.lastSyncAt && (
@@ -213,6 +236,53 @@ export function LinkoPage() {
           )}
         </section>
       </div>
+
+      {/* ── Do'konlar (Linko savdo nuqtalari) ── */}
+      <section className="adm-card mt-4 p-4 sm:p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
+            <Store size={18} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold">Do‘konlar</h2>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              Linko’dagi savdo nuqtalari — telefoni, manzili, agenti va narxlar ro‘yxati bilan
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <Stat label="Do‘konlar" value={shops.filter((s) => s.source === 'linko').length} />
+          <Stat label="Ilovaga ulangan" value={shops.filter((s) => s.memberIds.length > 0).length} />
+          <Stat label="Narx ro‘yxatlari" value={shopSync.priceListIds.length} />
+        </div>
+        {shopSync.priceListIds.length > 0 && (
+          <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+            Do‘konlar ishlatayotgan narx ro‘yxatlari:{' '}
+            <b style={{ color: 'var(--ink)' }}>
+              {shopSync.priceListIds
+                .map((id) => status?.priceLists?.find((p) => p.id === id)?.name || `#${id}`)
+                .join(', ')}
+            </b>
+            . Har do‘kon o‘z ro‘yxatidagi narxni ko‘radi; sinxron ularning hammasini tortadi.
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button className="adm-btn adm-btn--primary" onClick={() => syncShops(false)} disabled={busy === 'shops'}>
+            {busy === 'shops' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            Do‘konlarni yangilash
+          </button>
+          <button className="adm-btn adm-btn--ghost" onClick={() => syncShops(true)} disabled={busy === 'shops'}>
+            To‘liq qayta o‘qish
+          </button>
+          <a className="adm-btn adm-btn--ghost" href="#/shops">Do‘konlar ro‘yxati →</a>
+        </div>
+        {shopSync.lastSyncAt && (
+          <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+            Oxirgi sinxron: {new Date(shopSync.lastSyncAt).toLocaleString('uz-UZ')}
+            {shopSync.lastReport ? ` — ${shopSync.lastReport}` : ''}
+          </p>
+        )}
+      </section>
 
       {/* ── Buyurtmalarni yuborish ── */}
       <OrdersCard
@@ -431,7 +501,7 @@ function ConnectionCard({
             Token serverda <code>LINKO_TOKEN</code> muhit o‘zgaruvchisida saqlanadi — bu yerda emas.
           </p>
 
-          <label className="adm-label mt-3">Narxlar ro‘yxati</label>
+          <label className="adm-label mt-3">Asosiy (ulgurji) narxlar ro‘yxati</label>
           <select
             className="adm-input"
             value={priceListId}
@@ -444,11 +514,11 @@ function ConnectionCard({
               <option key={item.id} value={item.id}>{item.name}</option>
             ))}
           </select>
-          {!status?.priceLists && (
-            <p className="mt-1.5 text-xs" style={{ color: 'var(--faint)' }}>
-              Ro‘yxatni ko‘rish uchun «Ulanishni tekshirish» tugmasini bosing.
-            </p>
-          )}
+          <p className="mt-1.5 text-xs" style={{ color: 'var(--faint)' }}>
+            {status?.priceLists
+              ? 'Katalogdagi narx shu ro‘yxatdan. Do‘konga Linko’da boshqa ro‘yxat biriktirilgan bo‘lsa — u o‘z ro‘yxatidagi narxni ko‘radi. Chakana (uy-xo‘jalik) ro‘yxatini tanlamang.'
+              : 'Ro‘yxatni ko‘rish uchun «Ulanishni tekshirish» tugmasini bosing.'}
+          </p>
           {/* Tanlanmagan holatda saqlash narxni butunlay o'chirib qo'yadi */}
           {!priceListId && (
             <p className="mt-1.5 flex items-start gap-1.5 text-xs" style={{ color: 'var(--danger)' }}>
@@ -593,7 +663,7 @@ function OrdersCard({
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="adm-label">Agent nomidan</label>
+          <label className="adm-label">Umumiy agent (do‘konning agenti bo‘lmasa)</label>
           <select className="adm-input" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
             <option value="">— tanlanmagan —</option>
             {agents.map((u) => (
@@ -617,16 +687,17 @@ function OrdersCard({
         </div>
 
         <div className="sm:col-span-2">
-          <label className="adm-label">Mijoz turi (Linko ID)</label>
+          <label className="adm-label">Qo‘lda qo‘shilgan do‘konlar turi (Linko ID)</label>
           <input
             className="adm-input"
             inputMode="numeric"
             value={marketTypeId}
             onChange={(e) => setMarketTypeId(e.target.value.replace(/\D/g, ''))}
-            placeholder="Masalan: Telegram bot B2C turining raqami"
+            placeholder="Ixtiyoriy"
           />
           <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
-            Botdan kelgan mijoz Linko’da shu turda yoziladi. Bo‘sh — Linko o‘zi «Розничный» qo‘yadi.
+            Linko’dan kelgan do‘kon o‘zining Linko ID si bilan yuboriladi. Admin qo‘lda qo‘shgan do‘kon
+            esa Linko’da shu turda yaratiladi. Bo‘sh — Linko o‘zi tanlaydi.
           </p>
         </div>
       </div>
