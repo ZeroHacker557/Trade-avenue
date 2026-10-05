@@ -5,6 +5,7 @@ import { createFirestore } from '../config/firestore-cache'
 import { getStorage } from 'firebase/storage'
 import { firebaseConfig } from '../config/firebase'
 import { parseDate } from '../utils/date'
+import { DEFAULT_RULE, readCutoff, readDays } from '../utils/delivery-date'
 import { readPromotion, type Promotion } from '../utils/promotions'
 import { readSplashAd, type SplashAd } from '../utils/splash-ad'
 import { readBanners, type HomeBanner } from '../config/banners'
@@ -76,6 +77,8 @@ export function subscribeToProducts(callback: (products: Product[]) => void, onE
         sectionId: data.sectionId ? String(data.sectionId) : null,
         popular: data.popular === true,
         active: data.active !== false,
+        tiers: Array.isArray(data.tiers) ? data.tiers : undefined,
+        retailPrice: Number(data.retailPrice) > 0 ? Number(data.retailPrice) : undefined,
       }
     })
     callback(products)
@@ -85,6 +88,25 @@ export function subscribeToProducts(callback: (products: Product[]) => void, onE
     console.error('[Firebase] Go to Firebase Console → Firestore → Rules and set: allow read: if true;')
     if (onError) onError(error)
   })
+}
+
+/**
+ * Do'konning narxlar ro'yxati (Linko): mahsulot id → DONA narxi.
+ * Rules: faqat shu do'konga ulangan foydalanuvchi (`pl` claim).
+ */
+export function subscribeToPriceList(listId: number, callback: (prices: Map<string, number>) => void) {
+  return onSnapshot(
+    doc(db, 'price_lists', String(listId)),
+    (snap) => {
+      const raw = (snap.data()?.prices ?? {}) as Record<string, unknown>
+      callback(new Map(Object.entries(raw).map(([id, price]) => [id, Number(price)]).filter(([, price]) => Number(price) > 0) as [string, number][]))
+    },
+    (error) => {
+      // Ro'yxat o'qilmasa — asosiy narxlar ko'rinadi (server baribir to'g'ri narxda hisoblaydi)
+      console.error('[Firebase] narxlar ro‘yxati:', error)
+      callback(new Map())
+    },
+  )
 }
 
 /** O'ramdagi dona soni: 1–1000 butun son, aks holda 1. */
@@ -141,7 +163,7 @@ const PAYMENT_FALLBACK: PaymentSettings = {
   cardOwner: '',
 }
 
-const DELIVERY_FALLBACK: DeliverySettings = { fee: 0, freeFrom: 0, minOrder: 0 }
+const DELIVERY_FALLBACK: DeliverySettings = { fee: 0, freeFrom: 0, minOrder: 0, cutoff: DEFAULT_RULE.cutoff, days: DEFAULT_RULE.days }
 
 /** Yetkazib berish narxi — settings/delivery hujjatidan. */
 export async function getDeliverySettings(): Promise<DeliverySettings> {
@@ -153,6 +175,8 @@ export async function getDeliverySettings(): Promise<DeliverySettings> {
       fee: Math.max(Number(data.fee) || 0, 0),
       freeFrom: Math.max(Number(data.freeFrom) || 0, 0),
       minOrder: Math.max(Number(data.minOrder) || 0, 0),
+      cutoff: readCutoff(data.cutoff),
+      days: readDays(data.days).length ? readDays(data.days) : DEFAULT_RULE.days,
     }
   } catch (error) {
     console.error("[Firebase] Yetkazish sozlamalarini o'qib bo'lmadi:", error)
@@ -352,6 +376,7 @@ function readShopDoc(id: string, data: Record<string, unknown>): Shop | null {
     phones: [...new Set([...list(data.phones), ...list(data.extraPhones)])].map(prettyPhone),
     agentName: String(data.agentName || ''),
     priceListId: Number(data.priceListId) || 0,
+    deliveryDays: readDays(data.deliveryDays),
   }
 }
 

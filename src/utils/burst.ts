@@ -1,7 +1,7 @@
 /**
  * Zarrachalar «portlashi» — element markazidan atrofga sochiladi.
  *
- *   yurakcha — sevimlilarga qo'shilganda (kichik, qizil yurakchalar)
+ *   belgi    — doimiy ro'yxatga qo'shilganda (kichik ko'k belgilar)
  *   konfetti — buyurtma berilganda (brend ranglarida)
  *
  * React'dan tashqarida: vaqtincha `body` ga qo'shiladi va Web Animations
@@ -64,9 +64,9 @@ export function burst(el: Element | null, options: Options = {}) {
   }
 }
 
-/** Sevimlilarga qo'shildi. */
-export const heartBurst = (el: Element | null) =>
-  burst(el, { glyphs: ['♥'], colors: ['#e11d48', '#f43f5e', '#fb7185'], count: 9, distance: 30, size: 11 })
+/** Doimiy ro'yxatga qo'shildi. */
+export const saveBurst = (el: Element | null) =>
+  burst(el, { glyphs: ['✓', '•'], colors: ['#1d4ed8', '#60a5fa', '#f59e0b'], count: 9, distance: 30, size: 11 })
 
 /** Buyurtma qabul qilindi — brend ranglaridagi konfetti. */
 export const confettiBurst = (el: Element | null) =>

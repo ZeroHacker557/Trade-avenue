@@ -93,6 +93,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Narxlar ro'yxati: do'konchi faqat o'z do'konining ro'yxatini ko'radi
+    // (`pl` claim — api/_lib/shops.ts). Boshqa do'konlar narxi yopiq.
+    match /price_lists/{listId} {
+      allow read: if isStaff()
+                  || (signedIn() && int(listId) in request.auth.token.get('pl', []));
+      allow write: if false;   // faqat server (Linko sinxroni)
+    }
+
     // Ochilish reklamasi (ads/splash) — ilova ochilganda, mijoz tizimga
     // kirishidan OLDIN o'qiladi, shuning uchun o'qish ochiq.
     match /ads/{adId} {

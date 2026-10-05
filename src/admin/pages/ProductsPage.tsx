@@ -35,6 +35,10 @@ type Draft = {
   stock: string
   /** O'ramda nechta dona (1 — oddiy, donalab). */
   pack: string
+  /** Miqdor chegirmasi pog'onalari (sotiladigan birlikda: o'ramda — quti). */
+  tiers: { min: string; percent: string }[]
+  /** Tavsiya etilgan chakana narx (dona). Bo'sh — yo'q. */
+  retailPrice: string
   /** Vazni — bitta qiymat, kartochkada nom tagida ko'rinadi («500 gr»). */
   sizes: string
   color: string
@@ -71,7 +75,7 @@ const EMPTY: Draft = {
   kind: 'product',
   name: '', nameRu: '', nameEn: '', price: '', oldPrice: '', category: '',
   description: '', descriptionRu: '', descriptionEn: '',
-  discount: '', stock: '0', pack: '1', sizes: '', color: '', popular: false, sectionId: '',
+  discount: '', stock: '0', pack: '1', tiers: [], retailPrice: '', sizes: '', color: '', popular: false, sectionId: '',
   linkoIds: '',
   bundle: [],
   images: [], thumbs: [], optimized: [],
@@ -118,6 +122,8 @@ function toDraft(product: ProductRow, linko: LinkoRow[]): Draft {
     discount: product.discount || '',
     stock: String(product.stock ?? 0),
     pack: String(product.pack && product.pack > 1 ? product.pack : 1),
+    tiers: (product.tiers || []).map((tier) => ({ min: String(tier.min), percent: String(tier.percent) })),
+    retailPrice: product.retailPrice ? String(product.retailPrice) : '',
     sizes: (product.sizes || []).join(', '),
     color: product.color || '',
     popular: product.popular === true,
@@ -208,6 +214,9 @@ export function ProductsPage() {
         discount: draft.discount,
         stock: Number(draft.stock),
         pack: draft.kind === 'set' ? 1 : Math.max(1, Number(draft.pack) || 1),
+        // Server tozalaydi (api/_lib/tiers.ts): noto'g'ri qatorlar tashlanadi
+        tiers: draft.kind === 'set' ? [] : draft.tiers.map((tier) => ({ min: Number(tier.min), percent: Number(tier.percent.replace(',', '.')) })),
+        retailPrice: draft.kind === 'set' ? 0 : Number(draft.retailPrice) || 0,
         // Bitta qiymat: «0,5 kg» dagi vergul endi bo'luvchi emas
         sizes: draft.sizes.trim() ? [draft.sizes.trim()] : [],
         color: draft.color,
@@ -703,6 +712,33 @@ function ProductForm({
           </Field>
         )}
 
+        {!isSet && (
+          <TiersField
+            tiers={draft.tiers}
+            unit={Number(draft.pack) > 1 ? 'quti' : 'dona'}
+            price={(Number(draft.price) || 0) * Math.max(1, Number(draft.pack) || 1)}
+            onChange={(tiers) => set({ tiers })}
+          />
+        )}
+
+        {!isSet && (
+          <Field label="Tavsiya etilgan chakana narx (1 dona) — do‘konchi foydasini ko‘radi">
+            <input
+              className="adm-input"
+              inputMode="numeric"
+              value={draft.retailPrice}
+              onChange={(e) => set({ retailPrice: e.target.value.replace(/\D/g, '') })}
+              placeholder="Bo‘sh — ko‘rsatilmaydi"
+            />
+            {Number(draft.retailPrice) > 0 && Number(draft.price) > 0 && (
+              <small className="mt-1 block text-xs" style={{ color: Number(draft.retailPrice) > Number(draft.price) ? 'var(--success)' : 'var(--danger)' }}>
+                Do‘konchi foydasi: <b>{formatPrice(Number(draft.retailPrice) - Number(draft.price))}</b> / dona
+                {' '}({Math.round(((Number(draft.retailPrice) - Number(draft.price)) / Number(draft.price)) * 100)}% ustama, asosiy narx bo‘yicha)
+              </small>
+            )}
+          </Field>
+        )}
+
         {isSet && (
           <BundleField
             value={draft.bundle}
@@ -1059,6 +1095,81 @@ function BundleField({
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * Miqdor chegirmasi: «10 qutidan — 3%». Aksiya bilan qo'shilmaydi —
+ * kattasi olinadi (server: api/_lib/tiers.ts).
+ */
+function TiersField({
+  tiers, unit, price, onChange,
+}: {
+  tiers: { min: string; percent: string }[]
+  unit: string
+  /** Bitta sotiladigan birlik narxi (o'ramda — quti) — namuna uchun. */
+  price: number
+  onChange: (tiers: { min: string; percent: string }[]) => void
+}) {
+  const update = (index: number, patch: Partial<{ min: string; percent: string }>) =>
+    onChange(tiers.map((tier, i) => (i === index ? { ...tier, ...patch } : tier)))
+
+  return (
+    <Field label={`Miqdor chegirmasi — ko‘p olganga arzonroq (${unit} bo‘yicha)`}>
+      <div className="grid gap-2">
+        {tiers.map((tier, index) => {
+          const percent = Number(tier.percent.replace(',', '.'))
+          return (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                className="adm-input w-24"
+                inputMode="numeric"
+                value={tier.min}
+                onChange={(e) => update(index, { min: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder="10"
+                aria-label="Kamida"
+              />
+              <span className="shrink-0 text-xs" style={{ color: 'var(--muted)' }}>{unit} dan</span>
+              <input
+                className="adm-input w-20"
+                inputMode="decimal"
+                value={tier.percent}
+                onChange={(e) => update(index, { percent: e.target.value.replace(/[^\d.,]/g, '').slice(0, 4) })}
+                placeholder="3"
+                aria-label="Foiz"
+              />
+              <span className="shrink-0 text-xs" style={{ color: 'var(--muted)' }}>%</span>
+              {price > 0 && percent > 0 && percent <= 50 && (
+                <span className="min-w-0 truncate text-xs font-bold" style={{ color: 'var(--success)' }}>
+                  → {formatPrice(Math.round((price * (100 - percent)) / 100))}
+                </span>
+              )}
+              <button
+                type="button"
+                className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg"
+                style={{ color: 'var(--danger)' }}
+                onClick={() => onChange(tiers.filter((_, i) => i !== index))}
+                aria-label="O‘chirish"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          )
+        })}
+        {tiers.length < 5 && (
+          <button
+            type="button"
+            className="adm-btn adm-btn--ghost w-full"
+            onClick={() => onChange([...tiers, { min: '', percent: '' }])}
+          >
+            <Plus size={15} /> Pog‘ona qo‘shish
+          </button>
+        )}
+        <small className="text-xs" style={{ color: 'var(--faint)' }}>
+          Foiz 50% gacha. Vaqtli aksiya bilan qo‘shilmaydi — kattasi olinadi.
+        </small>
+      </div>
+    </Field>
   )
 }
 

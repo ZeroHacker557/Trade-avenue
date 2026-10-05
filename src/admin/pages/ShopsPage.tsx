@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast'
 import { usePrintDoc } from '../lib/print'
 import { dateTime } from '../lib/dates'
 import { BRAND } from '../../config/brand'
+import { WeekdayPicker } from '../components/WeekdayPicker'
 
 type Filter = 'all' | 'unlinked' | 'linked' | 'nocode' | 'blocked'
 
@@ -27,6 +28,10 @@ function prettyPhone(value: string): string {
   if (d.length !== 12) return value
   return `+${d.slice(0, 3)} ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10, 12)}`
 }
+
+const WEEKDAY = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh']
+const weekdayNames = (days: number[]) =>
+  [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WEEKDAY[d]).join(', ')
 
 const allPhones = (shop: ShopRow) => [...new Set([...shop.phones, ...shop.extraPhones])]
 const isOpen = (shop: ShopRow) => shop.active && shop.linkoActive
@@ -305,6 +310,7 @@ function ShopDetail({
             ))}
             {!phones.length && <span style={{ color: 'var(--danger)' }}>Telefon yo‘q — do‘konchi kira olmaydi. Qo‘shimcha raqam qo‘shing.</span>}
             <span>Agent: <b style={{ color: 'var(--ink)' }}>{shop.agentName || '—'}</b></span>
+            <span>Yetkazish kunlari: <b style={{ color: 'var(--ink)' }}>{shop.deliveryDays.length ? weekdayNames(shop.deliveryDays) : 'umumiy'}</b></span>
             <span>Narxlar ro‘yxati: <b style={{ color: 'var(--ink)' }}>{shop.priceListName || (shop.priceListId ? `#${shop.priceListId}` : 'umumiy')}</b></span>
             {shop.marketTypeName && <span>Turi: {shop.marketTypeName}</span>}
             {shop.linkoId > 0 && <span>Linko ID: {shop.linkoId}</span>}
@@ -472,6 +478,7 @@ function ShopForm({
   const [agentName, setAgentName] = useState(shop?.agentName ?? '')
   const [phones, setPhones] = useState((shop?.extraPhones ?? []).map(prettyPhone).join('\n'))
   const [note, setNote] = useState(shop?.note ?? '')
+  const [deliveryDays, setDeliveryDays] = useState<number[]>(shop?.deliveryDays ?? [])
 
   const save = async () => {
     const result = await run('save', 'shops.save', {
@@ -481,6 +488,7 @@ function ShopForm({
       agentName,
       extraPhones: phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean),
       note,
+      deliveryDays,
     })
     if (result) onSaved(String(result.id || shop?.id || ''))
   }
@@ -515,6 +523,8 @@ function ShopForm({
       <label className="adm-label mt-3" htmlFor="shop-phones">{manual ? 'Telefon raqamlari' : 'Qo‘shimcha telefon raqamlari'} (har qatorda bittadan)</label>
       <textarea id="shop-phones" className="adm-input min-h-[84px]" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder="+998 90 123 45 67" />
       <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>Do‘konchi shu raqamlardan biri va kod bilan kiradi.</p>
+      <p className="adm-label mt-3">Yetkazish kunlari (agent marshruti) — tanlanmasa umumiy sozlama</p>
+      <WeekdayPicker value={deliveryDays} onChange={setDeliveryDays} />
       <label className="adm-label mt-3" htmlFor="shop-note">Izoh (faqat adminlarga)</label>
       <input id="shop-note" className="adm-input" value={note} onChange={(e) => setNote(e.target.value)} />
     </Modal>

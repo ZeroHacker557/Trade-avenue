@@ -1,6 +1,6 @@
-import { Gift, Heart, Minus, Plus, ShoppingCart } from 'lucide-react'
+import { Gift, Bookmark, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { flyToCart } from '../../utils/fly-to-cart'
-import { heartBurst } from '../../utils/burst'
+import { saveBurst } from '../../utils/burst'
 import { markHero } from '../../utils/view-transition'
 import { useState } from 'react'
 import { formatPrice } from '../../data'
@@ -147,13 +147,13 @@ export function ProductCard({ product, onOpen, onAddToCart, cartQtyOf, onChangeQ
           onClick={(e) => {
             e.stopPropagation()
             // Qo'shilayotganda — yurakchalar sochiladi (olib tashlashda emas)
-            if (!favourite) heartBurst(e.currentTarget)
+            if (!favourite) saveBurst(e.currentTarget)
             onToggleLike(product.id)
           }}
           aria-label={t('favorites.title')}
           aria-pressed={favourite}
         >
-          <Heart size={18} fill={favourite ? 'currentColor' : 'none'} />
+          <Bookmark size={18} fill={favourite ? 'currentColor' : 'none'} />
         </button>
       )}
 

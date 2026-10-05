@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { flyToCart } from '../utils/fly-to-cart'
-import { heartBurst } from '../utils/burst'
+import { saveBurst } from '../utils/burst'
 import { PromoTimer } from '../components/promo/PromoTimer'
 import { productOriginal, productPhoto, productThumb } from '../utils/product-image'
 import { createPortal } from 'react-dom'
 import {
-  ArrowLeft, Heart, Minus, Plus, ShoppingBag, ShoppingCart, Truck, ZoomIn,
+  ArrowLeft, Bookmark, Minus, Plus, ShoppingBag, ShoppingCart, Truck, ZoomIn,
 } from 'lucide-react'
 import { formatPrice } from '../data'
 import { ProductImage } from '../components/product/ProductImage'
@@ -15,6 +15,7 @@ import { track } from '../lib/track'
 import { useT } from '../i18n'
 import type { Product } from '../types/domain'
 import { PageTitle } from '../components/layout/PageTitle'
+import { WholesaleInfo } from '../components/product/WholesaleInfo'
 
 type Props = {
   product: Product
@@ -73,7 +74,7 @@ export function ProductDetailPage({
         <div className="ml-auto flex gap-1">
           <button
             onClick={(e) => {
-              if (!favourite) heartBurst(e.currentTarget)
+              if (!favourite) saveBurst(e.currentTarget)
               onToggleLike(product.id)
             }}
             className="icon-button"
@@ -81,7 +82,7 @@ export function ProductDetailPage({
             aria-label={t('favorites.title')}
             aria-pressed={favourite}
           >
-            <Heart size={21} fill={favourite ? 'currentColor' : 'none'} />
+            <Bookmark size={21} fill={favourite ? 'currentColor' : 'none'} />
           </button>
           <CartButton count={cartCount} onClick={onOpenCart} />
         </div>
@@ -191,6 +192,9 @@ export function ProductDetailPage({
             <span className="text-xs font-bold" style={{ color: 'var(--muted)' }}>{product.promotion.title}</span>
           </div>
         )}
+
+        {/* Ulgurji: miqdor chegirmasi va tavsiya etilgan narx / foyda */}
+        <WholesaleInfo product={product} />
 
         {/* Set tarkibi — narx setning o'zi, tarkib nima kirishini ko'rsatadi */}
         {!!product.bundleItems?.length && (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { sortCategories } from '../config/categories'
-import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToShopOrders, subscribeToMyShops, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
+import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToShopOrders, subscribeToMyShops, subscribeToPriceList, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
 import type { ReceiptUpload } from '../components/checkout/ReceiptSheet'
 import { ensureSignedIn, onAuthChanged, auth, claimedShops, refreshClaims } from '../lib/auth'
 import { apiPost } from '../lib/api'
@@ -12,6 +12,7 @@ import { launchParams } from '../utils/launch'
 import { searchProducts } from '../utils/search'
 import { countUnseenOrders } from '../utils/notifications'
 import { bestPromotion, isRunning, promoPrice, type Promotion } from '../utils/promotions'
+import { tierPercent } from '../utils/tiers'
 import { useI18n } from '../i18n'
 import type { HomeBanner } from '../config/banners'
 import type { AppPage, CartRow, Category, Order, OrderForm, Product, Section, Shop, UserProfile, Notification } from '../types/domain'
@@ -143,6 +144,32 @@ export function useShopStore() {
   /** Bosh sahifa bannerlari (admin qo'shgan, faollari). */
   const [homeBanners, setHomeBanners] = useState<HomeBanner[]>([])
 
+  /**
+   * Ulangan do'konlar (filiallar). `shopsReady` — birinchi javob keldimi:
+   * kelguncha kirish ekrani ko'rsatilmaydi (ulangan do'konchi uni
+   * bir lahza ko'rib qolmasin).
+   */
+  const [shops, setShops] = useState<Shop[]>([])
+  const [shopsReady, setShopsReady] = useState(false)
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(loadShopId)
+  /**
+   * Token do'kon claim'larini o'z ichiga oladimi. Katalog Rules'da faqat
+   * shunda ochiladi — undan oldin obuna bo'lsak «ruxsat yo'q» bilan
+   * yopilib qolardi.
+   */
+  const [claimsFor, setClaimsFor] = useState('')
+  /** Faol do'kon: tanlangani, u yo'q bo'lsa birinchisi. */
+  const activeShop = useMemo(
+    () => shops.find((shop) => shop.id === selectedShopId) ?? shops[0] ?? null,
+    [shops, selectedShopId],
+  )
+  /** Faol do'konning narxlar ro'yxati — qaysi ro'yxatniki ekani bilan. */
+  const [listPrices, setListPrices] = useState<{ listId: number; prices: Map<string, number> }>({ listId: 0, prices: new Map() })
+  const shopKey = shops.map((shop) => shop.id).join('|')
+  /** Token shu do'konlar ro'yxatini tasdiqlagan — katalog ochiq (Rules: `shops` claim). */
+  const catalogAccess = shopKey !== '' && claimsFor === shopKey
+  const activeListPrices = activeShop?.priceListId && listPrices.listId === activeShop.priceListId ? listPrices.prices : null
+
   /*
    * Ekrandagi mahsulotlar:
    *   - nomi va tavsifi tanlangan tilda (tarjima bo'lmasa — o'zbekcha);
@@ -174,7 +201,14 @@ export function useShopStore() {
     const categoryRuByName = new Map(
       categories.filter((c) => c.nameRu).map((c) => [c.name.trim().toLowerCase(), c.nameRu as string]),
     )
-    return rawProducts.map((p) => {
+    /*
+     * Do'konning narxlar ro'yxati (Linko). Ro'yxatda bo'lmasa — asosiy
+     * narx. Server buyurtmada aynan shunday hisoblaydi (api/orders.ts).
+     */
+    const listed = activeListPrices
+    return rawProducts.map((base) => {
+    const unit = listed?.get(String(base.id))
+    const p = unit ? { ...base, price: unit * (base.pack ?? 1), ...(base.pack ? { unitPrice: unit } : {}) } : base
     /*
      * Ko'rsatiladigan nom tanlangan tilga o'tadi, asl nomlar esa
      * `nameUz`/`descriptionUz` da qoladi: qidiruv ikkala tilda ham
@@ -204,7 +238,7 @@ export function useShopStore() {
     }
     })
     }
-  }, [rawProducts, promotions, clock, lang, categories])
+  }, [rawProducts, promotions, clock, lang, categories, activeListPrices])
 
   /** Hozir ishlayotgan aksiyalar — bosh sahifadagi banner uchun. */
   const runningPromotions = useMemo(
@@ -249,28 +283,6 @@ export function useShopStore() {
     recipientName: '', recipientPhone: '',
   })
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  /**
-   * Ulangan do'konlar (filiallar). `shopsReady` — birinchi javob keldimi:
-   * kelguncha kirish ekrani ko'rsatilmaydi (ulangan do'konchi uni
-   * bir lahza ko'rib qolmasin).
-   */
-  const [shops, setShops] = useState<Shop[]>([])
-  const [shopsReady, setShopsReady] = useState(false)
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(loadShopId)
-  /**
-   * Token do'kon claim'larini o'z ichiga oladimi. Katalog Rules'da faqat
-   * shunda ochiladi — undan oldin obuna bo'lsak «ruxsat yo'q» bilan
-   * yopilib qolardi.
-   */
-  const [claimsFor, setClaimsFor] = useState('')
-  /** Faol do'kon: tanlangani, u yo'q bo'lsa birinchisi. */
-  const activeShop = useMemo(
-    () => shops.find((shop) => shop.id === selectedShopId) ?? shops[0] ?? null,
-    [shops, selectedShopId],
-  )
-  const shopKey = shops.map((shop) => shop.id).join('|')
-  /** Token shu do'konlar ro'yxatini tasdiqlagan — katalog ochiq (Rules: `shops` claim). */
-  const catalogAccess = shopKey !== '' && claimsFor === shopKey
   const [notifications, setNotifications] = useState<Notification[]>([])
   /** Cheki ochilgan buyurtma. */
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -359,6 +371,13 @@ export function useShopStore() {
     })()
     return () => { alive = false }
   }, [shopKey])
+
+  // Faol do'konning narxlari (Linko narxlar ro'yxati)
+  const priceListId = activeShop?.priceListId ?? 0
+  useEffect(() => {
+    if (!priceListId || !catalogAccess || DEMO) return
+    return subscribeToPriceList(priceListId, (prices) => setListPrices({ listId: priceListId, prices }))
+  }, [priceListId, catalogAccess])
 
   // Faol do'kon buyurtmalari — shu do'konning hamma akkauntlari bir ro'yxatni ko'radi
   const activeShopId = activeShop?.id ?? null
@@ -522,23 +541,39 @@ export function useShopStore() {
 
   const cartCount = Object.values(cartItems).reduce((total, item) => total + item.quantity, 0)
 
-  const cartTotal = useMemo(() => {
-    return Object.entries(cartItems).reduce((sum, [key, item]) => {
-      const pId = Number(key.split('_')[0])
-      const p = products.find((pr) => String(pr.id) === String(pId))
-      return sum + (p ? p.price * item.quantity : 0)
-    }, 0)
-  }, [cartItems, products])
-
+  /*
+   * Savat qatorlari — narx miqdor chegirmasi bilan: shu mahsulotning
+   * savatdagi UMUMIY soni pog'onaga yetsa (masalan 10 quti — 3%). Aksiya
+   * bilan qo'shilmaydi, kattasi olinadi — server ham shunday hisoblaydi.
+   */
   const cartProducts = useMemo(() => {
+    const byId = new Map(products.map((p) => [String(p.id), p]))
+    const totalOf = new Map<string, number>()
+    for (const [key, item] of Object.entries(cartItems)) {
+      const id = key.split('_')[0]
+      totalOf.set(id, (totalOf.get(id) ?? 0) + item.quantity)
+    }
     return Object.entries(cartItems)
       .map(([key, item]) => {
-        const pId = Number(key.split('_')[0])
-        const p = products.find((pr) => String(pr.id) === String(pId))
-        return p ? { product: p, quantity: item.quantity, size: item.size, color: item.color, cartKey: key } : null
+        const id = key.split('_')[0]
+        const p = byId.get(id)
+        if (!p) return null
+        const tier = tierPercent(p.tiers, totalOf.get(id) ?? 0)
+        const promo = p.promotion?.percent ?? 0
+        // Asl narx: aksiyada — aksiyagacha bo'lgani; aks holda joriy narx (admin «eski narxi» emas)
+        const base = p.promotion ? p.oldPrice ?? p.price : p.price
+        const product = tier > promo
+          ? { ...p, price: promoPrice(base, tier), oldPrice: base, tierPercent: tier }
+          : p
+        return { product, quantity: item.quantity, size: item.size, color: item.color, cartKey: key }
       })
       .filter(Boolean) as { product: Product; quantity: number; size?: string; color?: string; cartKey: string }[]
   }, [cartItems, products])
+
+  const cartTotal = useMemo(
+    () => cartProducts.reduce((sum, line) => sum + line.product.price * line.quantity, 0),
+    [cartProducts],
+  )
 
   const searchResults = useMemo(
     () => searchProducts(products, query),
@@ -890,6 +925,34 @@ export function useShopStore() {
     setCartOpen(true)
   }, [products, notify, t])
 
+  /**
+   * Doimiy ro'yxat → savat. Miqdor — shu tovarning oxirgi buyurtmadagi
+   * soni (do'konchi odatda har safar shuncha oladi), bo'lmasa 1.
+   * Sotuvda yo'qlari o'tkazib yuboriladi.
+   */
+  const addListToCart = useCallback((list: Product[]) => {
+    const lastQty = new Map<string, number>()
+    for (const order of [...myOrders].reverse()) {
+      for (const line of order.products || []) {
+        if (line.product?.id != null) lastQty.set(String(line.product.id), Math.max(1, Number(line.quantity) || 1))
+      }
+    }
+    const available = list.filter((product) => product.stock !== 0)
+    if (!available.length) return
+    setCartItems((current) => {
+      const next = { ...current }
+      for (const product of available) {
+        const key = defaultCartKey(product)
+        const quantity = lastQty.get(String(product.id)) ?? 1
+        next[key] = { quantity: Math.max(next[key]?.quantity ?? 0, quantity), size: product.sizes?.[0], color: product.color }
+      }
+      return next
+    })
+    hapticSuccess()
+    notify(t('orders.reorderDone', { count: available.length }))
+    setCartOpen(true)
+  }, [myOrders, notify, t])
+
   // Savat ochildi — unda o'z «Buyurtma berish» tugmasi bor, taklif endi ortiqcha
   const openCart = useCallback(() => {
     setCartOpen(true)
@@ -1008,7 +1071,7 @@ export function useShopStore() {
     navigate, goBack, openProduct, toggleLike, openReceipt, selectedOrder,
     shops, shopsReady, activeShop, catalogAccess, loginShop, switchShop, leaveShop,
     setSearchOpen, setQuery,
-    addToCart, updateCartQuantity, cartQtyOf, changeCartQty,
+    addToCart, updateCartQuantity, cartQtyOf, changeCartQty, addListToCart,
     openCart, closeCart, goToCheckout,
     updateOrderForm, submitOrder,
     notify, clearToast,

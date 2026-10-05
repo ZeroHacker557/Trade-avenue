@@ -1,4 +1,4 @@
-import { Heart } from 'lucide-react'
+import { ListChecks, ShoppingCart } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ProductCard } from '../components/product/ProductCard'
 import { ProductGridSkeleton } from '../components/ui/ProductCardSkeleton'
@@ -12,10 +12,12 @@ type Props = ProductActions & {
   loading: boolean
   onGoToCatalog: () => void
   onBack: () => void
+  /** Ro'yxatdagi hammasini savatga — miqdor oxirgi buyurtmadagidek. */
+  onAddAll: (products: Product[]) => void
 }
 
 export function FavoritesPage({
-  products, loading, likedIds, onGoToCatalog, onBack, ...actions
+  products, loading, likedIds, onGoToCatalog, onBack, onAddAll, ...actions
 }: Props) {
   const t = useT()
   const favorites = products.filter((p) => likedIds.includes(p.id))
@@ -31,6 +33,16 @@ export function FavoritesPage({
           <TextSkeleton className="h-5 w-40" />
         ) : (
           <p style={{ color: 'var(--muted)' }}>{t('catalog.total', { count: favorites.length })}</p>
+        )}
+
+        {/* Har safar oladigan tovarlar — bir bosishda savatga */}
+        {!loading && favorites.some((p) => p.stock !== 0) && (
+          <div className="mt-4">
+            <button className="btn-primary w-full py-3.5" onClick={() => onAddAll(favorites)}>
+              <ShoppingCart size={19} /> {t('favorites.addAll')}
+            </button>
+            <p className="mt-1.5 text-center text-xs" style={{ color: 'var(--faint)' }}>{t('favorites.addAllHint')}</p>
+          </div>
         )}
 
         {/* Mahsulotlar kelmaguncha «sevimlilar yo'q» deyilmaydi —
@@ -49,7 +61,7 @@ export function FavoritesPage({
               className="grid size-20 place-items-center rounded-full"
               style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
             >
-              <Heart size={40} />
+              <ListChecks size={40} />
             </span>
             <p className="mt-5 text-lg font-bold" style={{ color: 'var(--ink-2)' }}>{t('favorites.empty')}</p>
             <p className="mt-2 max-w-[260px] text-sm" style={{ color: 'var(--muted)' }}>

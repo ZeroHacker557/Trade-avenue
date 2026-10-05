@@ -302,6 +302,7 @@ function App() {
                 {...productActions}
                 onGoToCatalog={goToCatalog}
                 onBack={shop.goBack}
+                onAddAll={shop.addListToCart}
               />
             </div>
           )}

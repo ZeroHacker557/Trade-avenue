@@ -2,6 +2,7 @@ import { adminDb } from '../firebase-admin.js'
 import { LOW_STOCK_AT } from './orders.js'
 import { linkoForgetProduct } from './linko.js'
 import type { Staff } from '../admin-auth.js'
+import { readTiers } from '../tiers.js'
 
 /**
  * Katalog amallari: mahsulot, kategoriya, promokod.
@@ -143,18 +144,16 @@ export async function productSave(body: Record<string, unknown>): Promise<Result
     ...('bundle' in body ? { bundle: await readBundle(body.bundle, id) } : {}),
     stock,
     ...('pack' in body ? { pack } : {}),
+    // Miqdor chegirmasi pog'onalari (api/_lib/tiers.ts)
+    ...('tiers' in body ? { tiers: readTiers(body.tiers) } : {}),
+    // Tavsiya etilgan chakana narx (dona) — do'konchi foydasini ko'radi. 0 — yo'q
+    ...('retailPrice' in body ? { retailPrice: Math.max(0, Math.round(num(body.retailPrice, 0))) || null } : {}),
     // Qoldiq to'ldirildi — keyingi safar ombor signali yana ishlasin
     lowStockAlerted: stock <= LOW_STOCK_AT,
     updatedAt: new Date().toISOString(),
   }
 
-  if (!existing.exists) {
-    // Reyting va sharhlar soni faqat yaratilganda beriladi — keyin
-    // ularni sharhlar tizimi boshqaradi, admin qo'lda tegmaydi.
-    data.rating = 5
-    data.reviews = 0
-    data.createdAt = data.updatedAt
-  }
+  if (!existing.exists) data.createdAt = data.updatedAt
 
   await ref.set(data, { merge: true })
   return { id, created: !existing.exists }

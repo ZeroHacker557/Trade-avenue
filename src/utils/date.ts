@@ -57,3 +57,34 @@ export function formatTime(value?: string | null): string {
   const d = new Date(ms)
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+const DAY_NAMES: Record<'uz' | 'ru', string[]> = {
+  uz: ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'],
+  ru: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
+}
+const DAY_SHORT: Record<'uz' | 'ru', string[]> = {
+  uz: ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'],
+  ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+}
+const MONTH_FULL: Record<'uz' | 'ru', string[]> = {
+  uz: ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'],
+  ru: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+}
+
+/** Yetkazish sanasi «2026-10-07» → «7-oktabr, chorshanba» / «7 октября, среда». */
+export function formatDeliveryDay(day: string | undefined, lang: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '')
+  if (!match) return day ?? ''
+  const l = lang === 'ru' ? 'ru' : 'uz'
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+  const month = MONTH_FULL[l][date.getUTCMonth()]
+  const weekday = DAY_NAMES[l][date.getUTCDay()]
+  return l === 'ru' ? `${date.getUTCDate()} ${month}, ${weekday}` : `${date.getUTCDate()}-${month}, ${weekday}`
+}
+
+/** Hafta kunlari qisqa: [2, 4] → «Se, Pa». */
+export function formatWeekdays(days: number[], lang: string): string {
+  const l = lang === 'ru' ? 'ru' : 'uz'
+  // Dushanbadan boshlab tartiblanadi
+  return [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DAY_SHORT[l][d]).join(', ')
+}

@@ -1,5 +1,6 @@
 import { adminDb } from '../firebase-admin.js'
 import { sendMessage } from '../telegram.js'
+import { readCutoff, readDays } from '../delivery-date.js'
 import type { Staff } from '../admin-auth.js'
 
 function text(value: unknown): string {
@@ -91,7 +92,11 @@ export async function settingsSave(actor: Staff, body: Record<string, unknown>) 
     const freeFrom = num(body.freeFrom)
     // 0 — minimal summa yo'q, buyurtma har qanday summada o'tadi
     const minOrder = num(body.minOrder)
-    await db.collection('settings').doc('delivery').set({ fee, freeFrom, minOrder }, { merge: true })
+    // Qabul qilishning oxirgi vaqti va yetkazish kunlari (api/_lib/delivery-date.ts)
+    const cutoff = readCutoff(body.cutoff)
+    const days = readDays(body.days)
+    if (!days.length) throw new Error('Kamida bitta yetkazish kunini tanlang')
+    await db.collection('settings').doc('delivery').set({ fee, freeFrom, minOrder, cutoff, days }, { merge: true })
     return { ok: true }
   }
 

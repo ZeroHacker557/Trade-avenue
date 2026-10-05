@@ -1,3 +1,4 @@
+import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '../firebase-admin.js'
 import { LOW_STOCK_AT } from './orders.js'
 import {
@@ -56,7 +57,10 @@ type MirrorDoc = {
   vendorCode: string
   typeName: string
   measurement: string
+  /** Asosiy (sozlamadagi) narxlar ro'yxatidagi narx. */
   price: number
+  /** Hamma ishlatiladigan ro'yxatlardagi narxlar: ro'yxat id → narx (dona). */
+  prices?: Record<string, number>
   balances: Record<string, number>
   stock: number
   /**
@@ -184,6 +188,72 @@ async function applyToProduct(
       updatedAt: now,
     },
   }
+}
+
+/**
+ * Do'konlar ishlatadigan narxlar ro'yxatlari: sozlamadagi asosiysi va
+ * do'konlarniki (settings/shops.priceListIds — do'konlar sinxroni yozadi).
+ */
+async function priceListsInUse(settings: { priceListId: number }): Promise<number[]> {
+  const db = await adminDb()
+  const fromShops = (await db.collection('settings').doc('shops').get()).data()?.priceListIds
+  const ids = [settings.priceListId, ...(Array.isArray(fromShops) ? fromShops.map(Number) : [])]
+  return [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))]
+}
+
+/**
+ * Mahsulotning har ro'yxatdagi narxi — «asosiy» pozitsiyadan, u bo'lmasa
+ * eng qimmatidan (applyToProduct dagi qoida bilan bir xil).
+ */
+function listPricesOf(rows: MirrorDoc[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  const lists = new Set(rows.flatMap((row) => Object.keys(row.prices ?? {})))
+  for (const list of lists) {
+    const priced = rows.filter((row) => num(row.prices?.[list]) > 0)
+    const primary = priced.find((row) => row.primary)
+    const price = primary ? num(primary.prices?.[list]) : priced.reduce((max, row) => Math.max(max, num(row.prices?.[list])), 0)
+    if (price > 0) out[list] = Math.round(price)
+  }
+  return out
+}
+
+/**
+ * Do'kon narxlari: `price_lists/{ro'yxat}.prices[mahsulot]` — DONA narxi.
+ *
+ * Har ro'yxat bitta hujjat: mini app faqat o'z do'konining ro'yxatini
+ * o'qiydi (Rules: `pl` claim), boshqa do'konlar narxini ko'rmaydi. Server
+ * buyurtmada narxni shu yerdan oladi (api/orders.ts). Ro'yxatda bo'lmagan
+ * mahsulot — mahsulotning o'z (asosiy) narxida.
+ */
+export async function syncListPrices(productIds: string[]): Promise<number> {
+  const ids = [...new Set(productIds.filter(Boolean))]
+  if (!ids.length) return 0
+  const db = await adminDb()
+  const grouped = await linkedRows(ids)
+  const updates = new Map<string, Record<string, unknown>>()
+  const now = new Date().toISOString()
+  const lists = new Set<string>()
+  const perProduct = new Map<string, Record<string, number>>()
+  for (const id of ids) {
+    const prices = listPricesOf(grouped.get(id) ?? [])
+    perProduct.set(id, prices)
+    Object.keys(prices).forEach((list) => lists.add(list))
+  }
+  // Mahsulot ro'yxatdan chiqib ketgan bo'lsa (uzildi) — o'sha ro'yxatdan ham o'chadi
+  const existing = await db.collection('price_lists').get()
+  existing.docs.forEach((doc) => lists.add(doc.id))
+  for (const list of lists) {
+    const prices: Record<string, unknown> = {}
+    for (const id of ids) {
+      const price = perProduct.get(id)?.[list]
+      prices[id] = price && price > 0 ? price : FieldValue.delete()
+    }
+    updates.set(list, { prices, updatedAt: now })
+  }
+  for (const [list, data] of updates) {
+    await db.collection('price_lists').doc(list).set(data, { merge: true })
+  }
+  return updates.size
 }
 
 /** Nusxadagi hamma qatorni mahsulot bo'yicha guruhlaydi. */
@@ -335,12 +405,28 @@ export async function linkoPull(
   if (!full && settings.lastProductTm) productParams.last_tm = settings.lastProductTm
   const products = await linkoList<LinkoProduct>('products/', productParams, settings)
 
-  const priceParams: Record<string, string | number> = {}
-  if (settings.priceListId) priceParams.price_list = settings.priceListId
-  if (!full && settings.lastPriceTm) priceParams.last_tm = settings.lastPriceTm
-  const prices = settings.priceListId
-    ? await linkoList<LinkoPriceItem>('price_list_items/', priceParams, settings)
-    : []
+  /*
+   * Narxlar — har ro'yxat alohida (do'konlar turli narx ro'yxatida).
+   * Asosiysi mahsulotning `price` maydoniga, hammasi `price_lists/` ga.
+   */
+  const listIds = await priceListsInUse(settings)
+  const priceTms: Record<string, number> = { ...settings.priceTms }
+  const pricesByList = new Map<number, Map<number, number>>()
+  let pricesRead = 0
+  for (const list of listIds) {
+    const params: Record<string, string | number> = { price_list: list }
+    const cursor = num(priceTms[String(list)]) || (list === settings.priceListId ? settings.lastPriceTm : 0)
+    if (!full && cursor) params.last_tm = cursor
+    const items = await linkoList<LinkoPriceItem>('price_list_items/', params, settings)
+    pricesRead += items.length
+    const map = new Map<number, number>()
+    for (const item of items) {
+      if (!item?.product_id || item.price_list_id !== list) continue
+      map.set(item.product_id, Math.round(num(item.price)))
+    }
+    pricesByList.set(list, map)
+    priceTms[String(list)] = items.reduce((max, row) => Math.max(max, tmOf(row?.tm)), full ? 0 : cursor)
+  }
 
   const balanceParams: Record<string, string | number> = {}
   if (!full && settings.lastBalanceTm) balanceParams.last_tm = settings.lastBalanceTm
@@ -355,13 +441,8 @@ export async function linkoPull(
     touched.add(product.id)
   }
 
-  const priceById = new Map<number, number>()
-  for (const item of prices) {
-    if (!item?.product_id) continue
-    if (settings.priceListId && item.price_list_id !== settings.priceListId) continue
-    priceById.set(item.product_id, Math.round(num(item.price)))
-    touched.add(item.product_id)
-  }
+  const priceById = pricesByList.get(settings.priceListId) ?? new Map<number, number>()
+  for (const map of pricesByList.values()) for (const id of map.keys()) touched.add(id)
 
   const balanceById = new Map<number, Record<string, number>>()
   for (const row of balances) {
@@ -382,6 +463,7 @@ export async function linkoPull(
       { lastSyncAt: now, lastReport: report },
       { merge: true },
     )
+    await db.collection('settings').doc('linko').set({ priceTms }, { merge: true })
     return { ok: true, changed: 0, products: 0, prices: 0, balances: 0, updatedProducts: 0, report }
   }
 
@@ -415,6 +497,8 @@ export async function linkoPull(
     )
 
     const price = priceById.has(id) ? (priceById.get(id) as number) : num(old.price)
+    const listPrices: Record<string, number> = { ...(old.prices ?? {}) }
+    for (const [list, map] of pricesByList) if (map.has(id)) listPrices[String(list)] = map.get(id) as number
     const productIds = rowProducts(old)
 
     // Hech narsa o'zgarmagan — qayta yozilmaydi (mahsulot ham qayta hisoblanmaydi)
@@ -422,6 +506,7 @@ export async function linkoPull(
     const unchanged = existing.has(id)
       && num(old.price) === price
       && num(old.stock) === stock
+      && JSON.stringify(old.prices ?? {}) === JSON.stringify(listPrices)
       && text(old.name) === name
       && JSON.stringify(old.balances ?? {}) === JSON.stringify(stockMap)
     if (unchanged) continue
@@ -436,6 +521,7 @@ export async function linkoPull(
         typeName: text(info?.type?.name) || text(old.typeName),
         measurement: text(info?.measurement?.name) || text(old.measurement),
         price,
+        prices: listPrices,
         balances: stockMap,
         stock,
         productIds,
@@ -457,19 +543,22 @@ export async function linkoPull(
     if (write) productWrites.push(write)
   }
   await commitAll(productWrites)
+  // Do'kon narxlari (har ro'yxat) — shu mahsulotlar uchun qayta hisoblanadi
+  await syncListPrices([...affected])
 
   // ── Kursorlar: keyingi safar faqat yangisi keladi ──
   const maxTm = (rows: { tm?: string | number }[], current: number) =>
     rows.reduce((max, row) => Math.max(max, tmOf(row?.tm)), full ? 0 : current)
 
   const report =
-    `${products.length} mahsulot, ${prices.length} narx, ${balances.length} qoldiq o‘qildi; ` +
+    `${products.length} mahsulot, ${pricesRead} narx (${listIds.length} ro‘yxat), ${balances.length} qoldiq o‘qildi; ` +
     `${productWrites.length} ta do‘kon mahsuloti yangilandi`
 
   await db.collection('settings').doc('linko').set(
     {
       lastProductTm: maxTm(products, settings.lastProductTm),
-      lastPriceTm: maxTm(prices, settings.lastPriceTm),
+      lastPriceTm: num(priceTms[String(settings.priceListId)]) || settings.lastPriceTm,
+      priceTms,
       lastBalanceTm: maxTm(balances, settings.lastBalanceTm),
       lastSyncAt: now,
       lastReport: report,
@@ -481,7 +570,7 @@ export async function linkoPull(
     ok: true,
     changed: touched.size,
     products: products.length,
-    prices: prices.length,
+    prices: pricesRead,
     balances: balances.length,
     updatedProducts: productWrites.length,
     report,
@@ -530,6 +619,7 @@ export async function linkoLink(_staff: unknown, body: Record<string, unknown>):
       if (write) writes.push(write)
     }
     await commitAll(writes)
+    await syncListPrices(ids)
   }
 
   // ── Uzish ──
@@ -703,6 +793,7 @@ export async function linkoAutoLink(): Promise<Result> {
   }
 
   await commitAll(writes)
+  await syncListPrices(writes.filter((w) => w.ref.parent.id === 'products').map((w) => w.ref.id))
   return { ok: true, linked }
 }
 

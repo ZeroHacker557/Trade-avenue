@@ -6,6 +6,8 @@ import { adminAuth, adminDb } from './_lib/firebase-admin.js'
 import { fail, requirePost } from './_lib/http.js'
 import { isSource } from './_lib/campaigns.js'
 import { bestPromotion, promoPrice, readPromotion } from './_lib/promotions.js'
+import { tierPercent } from './_lib/tiers.js'
+import { deliveryDate, ruleFor } from './_lib/delivery-date.js'
 import { formatDailyNumber, tashkentDay } from './_lib/order-number.js'
 import { formatPhone, readShop, shopOpen, shopPhones, type ShopDoc } from './_lib/shops.js'
 
@@ -184,6 +186,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const deliveryRef = db.collection('settings').doc('delivery')
       const deliverySnap = await tx.get(deliveryRef)
 
+      // Do'konning narxlar ro'yxati (Linko) — bo'lmasa mahsulotning asosiy narxi
+      const listSnap = shop.priceListId > 0
+        ? await tx.get(db.collection('price_lists').doc(String(shop.priceListId)))
+        : null
+      const listPrices = (listSnap?.data()?.prices ?? {}) as Record<string, unknown>
+
       // Vaqtli aksiyalar — narx faqat shu yerda, Firestore'dagi holatdan
       const promoSnap = await tx.get(db.collection('promotions').where('active', '==', true))
       const promotions = promoSnap.docs.map((doc) => readPromotion(doc.id, doc.data()))
@@ -245,7 +253,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // O'ram: narx va qoldiq bazada DONADA, mijoz o'ramni oladi (src/lib/firebase.ts bilan bir xil)
         const pack = packOf(data)
-        const basePrice = Number(data.price) * pack
+        const unitPrice = Number(listPrices[snap.id]) > 0 ? Number(listPrices[snap.id]) : Number(data.price)
+        const basePrice = unitPrice * pack
         if (!Number.isFinite(basePrice) || basePrice <= 0) throw new Error('PRODUCT_PRICE')
 
         const promo = bestPromotion(
@@ -253,9 +262,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { id: snap.id, category: String(data.category || ''), sectionId: data.sectionId ? String(data.sectionId) : null },
           now,
         )
-        const price = promo ? promoPrice(basePrice, promo.percent) : basePrice
-
         const key = String(item.productId)
+        /*
+         * Miqdor chegirmasi — shu mahsulotning savatdagi umumiy soni bo'yicha.
+         * Aksiya bilan qo'shilmaydi: kattasi olinadi.
+         */
+        const tier = tierPercent(data.tiers, requestedByProduct.get(key) || 0)
+        const useTier = tier > 0 && tier > (promo?.percent ?? 0)
+        const percent = useTier ? tier : promo?.percent ?? 0
+        const price = percent > 0 ? promoPrice(basePrice, percent) : basePrice
+
         if (!seenProducts.has(key) && typeof data.stock === 'number') {
           seenProducts.add(key)
           const requested = (requestedByProduct.get(key) || 0) * pack
@@ -277,7 +293,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             price,
             ...(pack > 1 ? { pack } : {}),
             // Aksiya bo'lsa — asl narx va qaysi aksiya, hisobot va chek uchun
-            ...(promo ? { originalPrice: basePrice, promotion: { id: promo.id, title: promo.title, percent: promo.percent } } : {}),
+            ...(promo && !useTier ? { originalPrice: basePrice, promotion: { id: promo.id, title: promo.title, percent: promo.percent } } : {}),
+            ...(useTier ? { originalPrice: basePrice, tierPercent: tier } : {}),
             images: Array.isArray(data.images) ? data.images : [],
             // Buyurtmalar ro'yxatida kichik nusxa ko'rsatiladi
             thumbs: Array.isArray(data.thumbs) ? data.thumbs : [],
@@ -350,6 +367,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const total = discountedSubtotal + appliedDelivery
 
+      // Yetkazish sanasi — oxirgi vaqt va kunlar bo'yicha (do'konniki ustun)
+      const deliveryOn = deliveryDate(ruleFor(delivery, shop.deliveryDays), createdAt.getTime())
+
       // ── 5. Yozishlar ───────────────────────────────────────
       const dailyNumber = (counterSnap.exists ? Number(counterSnap.data()?.value) || 0 : 0) + 1
       const orderNumber = formatDailyNumber(dailyNumber)
@@ -381,6 +401,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         promoCode: appliedPromo,
         deliveryFee: appliedDelivery,
         total,
+        deliveryDate: deliveryOn,
         status: 'Yangi',
         paymentMethod: order.customer.paymentMethod,
         paymentStatus: order.customer.paymentMethod === 'Naqd' ? null : 'Kutilmoqda',

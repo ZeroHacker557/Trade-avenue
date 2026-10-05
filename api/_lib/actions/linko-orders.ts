@@ -38,6 +38,8 @@ type OrderDoc = {
   total?: number
   paymentMethod?: string
   createdAt?: string
+  /** Yetkazish sanasi «2026-10-07» (api/orders.ts). */
+  deliveryDate?: string
   products?: OrderProduct[]
   customer?: {
     name?: string
@@ -232,7 +234,7 @@ export async function pushOrder(orderId: string, order: OrderDoc): Promise<Resul
       custom_payment_type: cash ? 'cash' : 'karta',
       status: STATUS[text(order.status)] ?? 'not_delivered',
       comment: text(order.customer?.comment),
-      date_delivery: dateOnly(order.createdAt),
+      date_delivery: order.deliveryDate || dateOnly(order.createdAt),
       market: market.id ? { linko_id: market.id } : { service_id: market.serviceId },
       stock: { linko_id: settings.orderStockId },
       agent: { linko_id: agentId },

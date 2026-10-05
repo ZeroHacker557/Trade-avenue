@@ -4,6 +4,7 @@ import { apiPost } from '../lib/api'
 import { useSettings, type CompanySettings } from '../lib/live'
 import type { ContactInfo } from '../../config/contact'
 import { useToast } from '../components/Toast'
+import { WeekdayPicker } from '../components/WeekdayPicker'
 
 export function SettingsPage() {
   const settings = useSettings()
@@ -39,7 +40,7 @@ export function SettingsPage() {
           onSave={save}
         />
         <DeliveryCard
-          key={`del:${settings.delivery.fee}|${settings.delivery.freeFrom}|${settings.delivery.minOrder}`}
+          key={`del:${settings.delivery.fee}|${settings.delivery.freeFrom}|${settings.delivery.minOrder}|${settings.delivery.cutoff}|${(settings.delivery.days ?? []).join(',')}`}
           settings={settings.delivery}
           busy={busy === 'delivery'}
           onSave={save}
@@ -183,13 +184,15 @@ function TransferCard({
 function DeliveryCard({
   settings, busy, onSave,
 }: {
-  settings: { fee: number; freeFrom: number; minOrder: number }
+  settings: { fee: number; freeFrom: number; minOrder: number; cutoff?: string; days?: number[] }
   busy: boolean
   onSave: SaveFn
 }) {
   const [fee, setFee] = useState(String(settings.fee))
   const [freeFrom, setFreeFrom] = useState(String(settings.freeFrom))
   const [minOrder, setMinOrder] = useState(String(settings.minOrder ?? 0))
+  const [cutoff, setCutoff] = useState(settings.cutoff || '17:00')
+  const [days, setDays] = useState<number[]>(settings.days?.length ? settings.days : [1, 2, 3, 4, 5, 6])
 
 
   return (
@@ -223,12 +226,20 @@ function DeliveryCard({
         onChange={(e) => setMinOrder(e.target.value.replace(/\D/g, ''))}
       />
 
+      {/* Yetkazish jadvali: shu vaqtgacha — ertaga, keyin — indiniga, so'ng birinchi yetkazish kuni */}
+      <label className="adm-label mt-3" htmlFor="del-cutoff">Buyurtma qabul qilishning oxirgi vaqti (keyin — indiniga)</label>
+      <input id="del-cutoff" type="time" className="adm-input" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
+      <p className="adm-label mt-3">Yetkazish kunlari (do‘konning o‘z kunlari bo‘lsa — o‘shalar)</p>
+      <WeekdayPicker value={days} onChange={setDays} />
+
       <button
         className="adm-btn adm-btn--primary mt-4 w-full"
         onClick={() => onSave('delivery', {
           fee: Number(fee),
           freeFrom: Number(freeFrom),
           minOrder: Number(minOrder) || 0,
+          cutoff,
+          days,
         })}
         disabled={busy}
       >

@@ -16,6 +16,7 @@ export const DEMO_SHOPS: Shop[] = [
     phones: ['+998 90 123 45 67'],
     agentName: 'Sardor Aliyev',
     priceListId: 1,
+    deliveryDays: [],
   },
   {
     id: 'demo-2',
@@ -25,6 +26,8 @@ export const DEMO_SHOPS: Shop[] = [
     phones: ['+998 90 765 43 21'],
     agentName: 'Sardor Aliyev',
     priceListId: 1,
+    // Agent marshruti: faqat seshanba va payshanba
+    deliveryDays: [2, 4],
   },
 ]
 
@@ -56,13 +59,15 @@ function product(id: number, name: string, category: string, unitPrice: number, 
 }
 
 export const DEMO_PRODUCTS: Product[] = [
-  product(101, 'Coca-Cola 1,5 L', 'Ichimliklar', 13000, 6, 480, { popular: true, order: 1 }),
+  product(101, 'Coca-Cola 1,5 L', 'Ichimliklar', 13000, 6, 480, {
+    popular: true, order: 1, retailPrice: 15000, tiers: [{ min: 10, percent: 3 }, { min: 30, percent: 5 }],
+  }),
   product(102, 'Fanta apelsin 1 L', 'Ichimliklar', 10500, 12, 240, { popular: true, order: 2 }),
   product(103, 'Hydrolife suv 1,5 L', 'Ichimliklar', 3500, 6, 900),
   product(104, 'Makfa makaron 400 gr', 'Bakaleya', 6600, 20, 400, { popular: true, order: 3 }),
   product(105, 'Guruch «Lazer» 1 kg', 'Bakaleya', 17000, 10, 150),
   product(106, 'Kungaboqar yog‘i 1 L', 'Bakaleya', 19500, 15, 0),
-  product(107, 'Snickers 50 gr', 'Shirinliklar', 7000, 40, 800, { popular: true, order: 4 }),
+  product(107, 'Snickers 50 gr', 'Shirinliklar', 7000, 40, 800, { popular: true, order: 4, retailPrice: 9000, tiers: [{ min: 5, percent: 2 }] }),
   product(108, 'Alpen Gold shokolad 85 gr', 'Shirinliklar', 11000, 21, 210),
   product(109, 'Ariel kir yuvish kukuni 3 kg', 'Maishiy kimyo', 96000, 1, 35),
   product(110, 'Fairy idish yuvish 500 ml', 'Maishiy kimyo', 18000, 12, 96),
@@ -87,6 +92,7 @@ export function demoOrders(shop: Shop): Order[] {
       subtotal: cola.price * 4 + makfa.price * 2,
       total: cola.price * 4 + makfa.price * 2,
       status: 'Qabul qilindi',
+      deliveryDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
       paymentMethod: 'Naqd',
       customer: { name: 'Akmal', phone: '+998 90 123 45 67', address: shop.address, location: null, comment: '', paymentMethod: 'Naqd' },
       shopId: shop.id,

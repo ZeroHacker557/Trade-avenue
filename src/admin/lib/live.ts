@@ -416,7 +416,7 @@ export type AllSettings = {
     /** Karta orqali to'lov (o'tkazma) yoqilganmi. */
     transfer?: boolean
   }
-  delivery: { fee: number; freeFrom: number; minOrder: number }
+  delivery: { fee: number; freeFrom: number; minOrder: number; cutoff?: string; days?: number[] }
   courier: CourierSettings
   linko: LinkoSettings
   /** Kompaniya rekvizitlari — nakladnoy uchun (Sozlamalar → Rekvizitlar). */
@@ -765,6 +765,8 @@ export type ShopRow = {
   /** Linko'da faolmi. */
   linkoActive: boolean
   memberIds: string[]
+  /** Do'konning yetkazish kunlari; bo'sh — umumiy sozlama. */
+  deliveryDays: number[]
   hasCode: boolean
   codeIssuedAt: string | null
   source: 'linko' | 'manual'
@@ -796,6 +798,7 @@ function readShopRow(id: string, d: Record<string, unknown>): ShopRow {
     active: d.active !== false,
     linkoActive: d.linkoActive !== false,
     memberIds: list(d.memberIds),
+    deliveryDays: Array.isArray(d.deliveryDays) ? d.deliveryDays.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6) : [],
     hasCode: d.hasCode === true,
     codeIssuedAt: typeof d.codeIssuedAt === 'string' ? d.codeIssuedAt : null,
     source: d.source === 'manual' ? 'manual' : 'linko',

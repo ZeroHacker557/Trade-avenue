@@ -3,11 +3,11 @@ import { datedNumber } from '../utils/order-label'
 import { ChevronRight, ExternalLink, RotateCcw, ShoppingBag } from 'lucide-react'
 import { formatPrice } from '../data'
 import { openBotDeepLink } from '../utils/telegram'
-import { formatOrderDate } from '../utils/date'
+import { formatDeliveryDay, formatOrderDate } from '../utils/date'
 import { BRAND } from '../config/brand'
 import { PageHeader } from '../components/layout/PageHeader'
 import { OrderListSkeleton } from '../components/ui/LoadingSkeletons'
-import { useT, type TranslationKey } from '../i18n'
+import { useI18n, type TranslationKey } from '../i18n'
 import type { Order, OrderStatus } from '../types/domain'
 
 
@@ -48,7 +48,7 @@ export function OrdersPage({
   orders, ordersReady, authReady, isAuthenticated, onSearch, onFavorites,
   onGoToCatalog, onOpenReceipt, onReorder, onBack,
 }: Props) {
-  const t = useT()
+  const { t, lang } = useI18n()
   const [active, setActive] = useState('all')
 
   const filtered = useMemo(() => {
@@ -114,9 +114,17 @@ export function OrdersPage({
             <div key={order.id} className="order-card flex-col gap-3" style={{ animationDelay: `${Math.min(i, 6) * 0.06}s` }}>
               <div className="flex cursor-pointer flex-col gap-3" onClick={() => onOpenReceipt(order)}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--faint)' }}>
-                    {formatOrderDate(order.createdAt) || order.date}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--faint)' }}>
+                      {formatOrderDate(order.createdAt) || order.date}
+                    </p>
+                    {/* Yopilmagan buyurtma — qachon keladi */}
+                    {order.deliveryDate && ['Yangi', 'Qabul qilindi', 'Yetkazilmoqda'].includes(order.status) && (
+                      <p className="mt-0.5 truncate text-xs font-bold" style={{ color: 'var(--brand)' }}>
+                        {t('orders.deliveryOn', { date: formatDeliveryDay(order.deliveryDate, lang) })}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5">
                     {payInfo && !payInfo.needsAction && (
                       <span

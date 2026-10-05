@@ -54,6 +54,12 @@ export type Product = {
   active?: boolean
   /** Mini app: bitta donaning narxi (o'ramli mahsulotda). */
   unitPrice?: number
+  /** Miqdor chegirmasi pog'onalari: «10 qutidan — 3%» (src/utils/tiers.ts). */
+  tiers?: { min: number; percent: number }[]
+  /** Tavsiya etilgan chakana narx (DONA) — do'konchi foydasini ko'radi. */
+  retailPrice?: number
+  /** Savatda: shu miqdorga qo'llangan miqdor chegirmasi foizi. */
+  tierPercent?: number
   images: string[]
   /**
    * Siqilgan nusxalar — `images` bilan bir xil tartibda.
@@ -147,6 +153,8 @@ export type Order = {
   notified?: boolean
   /** Eski yozuvlarda formatlangan sana matni bo'lishi mumkin. */
   date?: string
+  /** Yetkazish sanasi «2026-10-07» (server yozadi). */
+  deliveryDate?: string
   /** Qaysi do'kon nomidan (server yozadi). */
   shopId?: string
   shop?: Pick<Shop, 'id' | 'name' | 'address' | 'location' | 'phones'> & { agentName?: string }
@@ -176,6 +184,8 @@ export type Shop = {
   phones: string[]
   agentName: string
   priceListId: number
+  /** Do'konning yetkazish kunlari (agent marshruti); bo'sh — umumiy. */
+  deliveryDays: number[]
 }
 
 /** Firestore'ga yozishdan oldingi buyurtma — id va raqam server tomonda beriladi. */
@@ -195,6 +205,10 @@ export type DeliverySettings = {
   freeFrom: number
   /** Minimal buyurtma summasi. 0 — cheklov yo'q. */
   minOrder: number
+  /** Buyurtma qabul qilishning oxirgi vaqti «17:00» — keyin indiniga. */
+  cutoff: string
+  /** Yetkazish kunlari (0 — yakshanba). */
+  days: number[]
 }
 
 export type OrderForm = {

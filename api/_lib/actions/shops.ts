@@ -3,6 +3,7 @@ import { adminDb } from '../firebase-admin.js'
 import type { Staff } from '../admin-auth.js'
 import { linkoList, linkoToken, readLinkoSettings, tmOf } from '../linko.js'
 import { newShopCode, normalizePhone, readShop, shopOpen, syncUserClaims } from '../shops.js'
+import { readDays } from '../delivery-date.js'
 
 /**
  * Admin panel → «Do'konlar».
@@ -161,10 +162,14 @@ export async function shopsSync(_staff: Staff | null, body: Body = {}) {
   })
   await commit(writes)
 
+  // Do'konlar ishlatadigan narx ro'yxatlari — Linko sinxroni shularni tortadi (actions/linko.ts)
+  const lists = await db.collection('shops').select('priceListId').get()
+  const priceListIds = [...new Set(lists.docs.map((d) => Number(d.data().priceListId) || 0).filter((id) => id > 0))]
+
   const maxTm = markets.reduce((max, m) => Math.max(max, tmOf(m?.tm)), full ? 0 : cursor)
   const created = writes.length - existing.size
   const report = `${markets.length} ta savdo nuqtasi o‘qildi, ${writes.length} ta do‘kon yangilandi (${created} ta yangi)`
-  await cursorRef.set({ lastMarketTm: maxTm, lastSyncAt: now, lastReport: report }, { merge: true })
+  await cursorRef.set({ lastMarketTm: maxTm, lastSyncAt: now, lastReport: report, priceListIds }, { merge: true })
   return { read: markets.length, saved: writes.length, created, skipped: markets.length - shops.length, report }
 }
 
@@ -176,13 +181,15 @@ export async function shopSave(_staff: Staff, body: Body) {
   const extraPhones = (Array.isArray(body.extraPhones) ? body.extraPhones : [])
     .map(normalizePhone).filter(Boolean)
   const note = str(body.note).slice(0, 500)
+  // Do'konning o'z yetkazish kunlari (bo'sh — umumiy sozlama)
+  const deliveryDays = readDays(body.deliveryDays)
 
   if (id) {
     const ref = db.collection('shops').doc(id)
     const snap = await ref.get()
     if (!snap.exists) throw new Error('Do‘kon topilmadi')
     const shop = readShop(id, snap.data())
-    const update: Record<string, unknown> = { extraPhones: [...new Set(extraPhones)], note, updatedAt: now }
+    const update: Record<string, unknown> = { extraPhones: [...new Set(extraPhones)], note, deliveryDays, updatedAt: now }
     if (shop.source === 'manual') {
       const name = str(body.name).slice(0, 120)
       if (!name) throw new Error('Do‘kon nomini kiriting')
@@ -213,6 +220,7 @@ export async function shopSave(_staff: Staff, body: Body) {
     priceListName: '',
     marketTypeName: '',
     note,
+    deliveryDays,
     active: true,
     linkoActive: true,
     memberIds: [],

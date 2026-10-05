@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { adminAuth, adminDb } from './firebase-admin.js'
+import { readDays } from './delivery-date.js'
 
 /**
  * Do'konlar — Trade Avenue'ning mijozlari.
@@ -38,6 +39,8 @@ export type ShopDoc = {
   active: boolean
   /** `false` — Linko'da o'chirilgan savdo nuqtasi. */
   linkoActive: boolean
+  /** Do'konning yetkazish kunlari (agent marshruti). Bo'sh — umumiy sozlama. */
+  deliveryDays: number[]
   note: string
   /** Bog'langan Telegram foydalanuvchilari (uid — matn). */
   memberIds: string[]
@@ -112,6 +115,7 @@ export function readShop(id: string, data: FirebaseFirestore.DocumentData | unde
     marketTypeName: str(d.marketTypeName),
     active: d.active !== false,
     linkoActive: d.linkoActive !== false,
+    deliveryDays: readDays(d.deliveryDays),
     note: str(d.note),
     memberIds: list(d.memberIds),
     hasCode: d.hasCode === true,

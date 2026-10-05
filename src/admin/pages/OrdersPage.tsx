@@ -1,5 +1,5 @@
 import {
-  Bike, ChevronDown, Columns3, FileText, List, Loader2, MapPin, Phone, Printer, Search, ShoppingBag, X,
+  Bike, ChevronDown, Columns3, FileText, List, Loader2, MapPin, Phone, Printer, Search, ShoppingBag, X, Store, CalendarDays,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -20,6 +20,7 @@ import { usePrintDoc } from '../lib/print'
 import { OrderTimeline } from '../components/OrderTimeline'
 import { OrdersBoard } from '../components/OrdersBoard'
 import { bundleText } from '../../utils/bundle'
+import { formatDeliveryDay } from '../../utils/date'
 
 type View = 'list' | 'board'
 const VIEW_KEY = 'ta-admin:orders-view'
@@ -539,9 +540,20 @@ function OrderDrawer({
             </section>
           )}
 
-          {/* Mijoz */}
+          {/* Do'kon va mas'ul shaxs */}
           <section className="adm-card p-3.5">
-            <p className="text-sm font-extrabold">{order.customer?.name || 'Nomsiz'}</p>
+            {order.shop?.name && (
+              <p className="mb-1 flex items-center gap-2 text-sm font-extrabold" style={{ color: 'var(--brand-strong)' }}>
+                <Store size={15} /> {order.shop.name}
+                {order.shop.agentName && <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>· agent: {order.shop.agentName}</span>}
+              </p>
+            )}
+            {order.deliveryDate && (
+              <p className="mb-2 flex items-center gap-2 text-sm font-bold">
+                <CalendarDays size={15} style={{ color: 'var(--gold)' }} /> Yetkazish: {formatDeliveryDay(order.deliveryDate, 'uz')}
+              </p>
+            )}
+            <p className="text-sm font-semibold">{order.customer?.name || 'Nomsiz'}</p>
             {order.customer?.phone && (
               <a
                 className="mt-2 flex items-center gap-2 text-sm font-semibold"

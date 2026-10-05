@@ -88,6 +88,16 @@ export const ru: Record<TranslationKey, string> = {
   'product.lowStockPack': 'Осталось {count} уп.',
   'product.pack': '{count} шт',
   'product.unitPrice': '1 шт — {price}',
+  'product.tiersTitle': 'Больше берёте — дешевле',
+  'product.tierRow': 'от {min} {unit}',
+  'product.unitPack': 'кор.',
+  'product.unitPiece': 'шт.',
+  'product.tierShort': 'от {min}: −{percent}%',
+  'product.retail': 'Рекомендуемая цена',
+  'product.retailPer': '{price} / шт.',
+  'product.profit': 'Ваша прибыль: {amount} / шт. ({percent}%)',
+  'cart.tierApplied': 'Оптовая скидка −{percent}%',
+  'cart.tierNext': 'Добавьте ещё {left} {unit} — будет −{percent}%',
   'product.addedToCart': '{name} добавлен в корзину',
 
   // ── Отзывы ──
@@ -133,6 +143,10 @@ export const ru: Record<TranslationKey, string> = {
   'checkout.discount': 'Скидка',
   'checkout.delivery': 'Доставка',
   'checkout.deliveryFree': 'Бесплатно',
+  'checkout.deliveryDate': 'Дата доставки',
+  'checkout.cutoffHint': 'Заказ до {time} доставим завтра',
+  'checkout.routeDays': 'Дни доставки в ваш магазин: {days}',
+  'orders.deliveryOn': 'Доставка: {date}',
   'checkout.minOrder': 'Минимальная сумма заказа — {amount}',
   'checkout.minOrderLeft': 'Добавьте ещё {amount}, чтобы оформить заказ',
   'checkout.total': 'Итого:',
@@ -224,6 +238,8 @@ export const ru: Record<TranslationKey, string> = {
   'favorites.title': 'Постоянный список',
   'favorites.empty': 'Постоянный список пока пуст',
   'favorites.emptyText': 'Отметьте товары, которые берёте каждый раз, — следующий заказ соберётся в пару касаний.',
+  'favorites.addAll': 'Добавить всё в корзину',
+  'favorites.addAllHint': 'Количество — как в прошлом заказе, в корзине можно изменить',
 
   // ── Профиль ──
   'profile.title': 'Профиль',

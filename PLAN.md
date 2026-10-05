@@ -45,11 +45,11 @@ ular mini app orqali tovar buyurtma qiladi.
 - [x] Buyurtma do'kon nomidan; Linko'ga shu do'kon (market) va uning agenti bilan ketadi
 
 ### 3-bosqich — Ulgurji savdo
-- [ ] Y2: narxlar Linko narx ro'yxatlaridan, har do'konning o'z narx ro'yxati; miqdorga qarab chegirma
-- [ ] Buyurtma Linko'ga aynan shu do'kon (`market`) va uning agenti nomidan yuboriladi
-- [ ] Y4: buyurtmani takrorlash, "Doimiy ro'yxat" (sevimlilar o'rniga)
-- [ ] Y5: yetkazish kunlari va qabul qilishning oxirgi vaqti
-- [ ] Y7: tavsiya etilgan chakana narx va foyda ko'rsatkichi
+- [x] Y2: narxlar Linko narx ro'yxatlaridan, har do'konning o'z narx ro'yxati; miqdorga qarab chegirma
+- [x] Buyurtma Linko'ga aynan shu do'kon (`market`) va uning agenti nomidan yuboriladi
+- [x] Y4: buyurtmani takrorlash, "Doimiy ro'yxat" (sevimlilar o'rniga, hammasini bir bosishda savatga)
+- [x] Y5: yetkazish kunlari va qabul qilishning oxirgi vaqti (umumiy + do'konga alohida)
+- [x] Y7: tavsiya etilgan chakana narx va foyda ko'rsatkichi
 
 ### 4-bosqich — Moliya
 - [ ] Y3: nasiya — qarz limiti, to'lov muddati, to'lovlarni kiritish, akt-sverka, botda eslatma

@@ -47,6 +47,8 @@ export type LinkoSettings = {
   /** Oxirgi sinxronlash kursorlari (Linko `tm` qiymatlari). */
   lastProductTm: number
   lastPriceTm: number
+  /** Har narxlar ro'yxatining kursori (do'konlar turli ro'yxatda): id → tm. */
+  priceTms: Record<string, number>
   lastBalanceTm: number
   lastSyncAt: string | null
   lastReport: string | null
@@ -64,6 +66,7 @@ export const LINKO_DEFAULTS: LinkoSettings = {
   marketTypeId: 0,
   lastProductTm: 0,
   lastPriceTm: 0,
+  priceTms: {},
   lastBalanceTm: 0,
   lastSyncAt: null,
   lastReport: null,
@@ -79,6 +82,7 @@ export async function readLinkoSettings(): Promise<LinkoSettings> {
     // Muhit o'zgaruvchisi zaxira sifatida — hujjat hali yaratilmagan bo'lsa
     baseUrl: String(data.baseUrl || process.env.LINKO_BASE_URL || '').replace(/\/+$/, ''),
     stockIds: Array.isArray(data.stockIds) ? data.stockIds.map(Number).filter(Number.isFinite) : [],
+    priceTms: data.priceTms && typeof data.priceTms === 'object' ? data.priceTms : {},
   }
 }
 

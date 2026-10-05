@@ -98,7 +98,15 @@ export function CartDrawer({
                         {color && `${t('cart.color')}: ${color}`}
                       </p>
                     )}
+                    {product.tierPercent ? (
+                      <p className="mt-1 text-[11px] font-bold" style={{ color: 'var(--success)' }}>
+                        {t('cart.tierApplied', { percent: product.tierPercent })}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-sm font-extrabold" style={{ color: 'var(--ink)' }}>
+                      {product.oldPrice && product.oldPrice > product.price ? (
+                        <del className="mr-1.5 text-xs font-bold" style={{ color: 'var(--faint)' }}>{formatPrice(product.oldPrice)}</del>
+                      ) : null}
                       {formatPrice(product.price)}
                       {product.pack ? <span className="font-bold" style={{ color: 'var(--muted)' }}> · {t('product.pack', { count: product.pack })}</span> : null}
                     </p>

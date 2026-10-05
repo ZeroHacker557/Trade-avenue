@@ -9,7 +9,9 @@ import { hapticFeedback } from '../utils/telegram'
 import { getPaymentSettings, getDeliverySettings } from '../lib/firebase'
 import { apiErrorText } from '../utils/api-error'
 import { apiPost } from '../lib/api'
-import { useT } from '../i18n'
+import { useI18n } from '../i18n'
+import { deliveryDate, ruleFor } from '../utils/delivery-date'
+import { formatDeliveryDay, formatWeekdays } from '../utils/date'
 import type { DeliverySettings, OrderForm, PaymentSettings, Product, Shop, UserProfile } from '../types/domain'
 import { PageTitle } from '../components/layout/PageTitle'
 import { ReceiptSheet, type ReceiptUpload } from '../components/checkout/ReceiptSheet'
@@ -38,7 +40,7 @@ type Props = {
 export function CheckoutPage({
   cartProducts, cartTotal, orderForm, onUpdateForm, onSubmit, isSubmitting, onBack, profile, shop,
 }: Props) {
-  const t = useT()
+  const { t, lang } = useI18n()
   /* Qabul qiluvchi boshqa odammi — qo'shimcha maydonlar shunga qarab ochiladi */
   const [otherRecipient, setOtherRecipient] = useState(
     Boolean(orderForm.recipientName || orderForm.recipientPhone),
@@ -287,6 +289,16 @@ export function CheckoutPage({
                 )}
               </div>
 
+              {/* Yetkazish sanasi — oxirgi vaqt va kunlar bo'yicha (server ham shunday hisoblaydi) */}
+              {delivery !== null && (
+                <div className="flex justify-between gap-3">
+                  <span style={{ color: 'var(--muted)' }}>{t('checkout.deliveryDate')}</span>
+                  <span className="text-right font-bold" style={{ color: 'var(--brand)' }}>
+                    {formatDeliveryDay(deliveryDate(ruleFor(delivery, shop.deliveryDays)), lang)}
+                  </span>
+                </div>
+              )}
+
               {belowMin && (
                 <p
                   className="rounded-xl px-3 py-2 text-xs font-semibold"
@@ -356,6 +368,13 @@ export function CheckoutPage({
                   </p>
                 </div>
               </div>
+              {delivery !== null && (
+                <p className="mt-1.5 pl-1 text-xs" style={{ color: 'var(--faint)' }}>
+                  {shop.deliveryDays.length
+                    ? t('checkout.routeDays', { days: formatWeekdays(shop.deliveryDays, lang) })
+                    : t('checkout.cutoffHint', { time: delivery.cutoff })}
+                </p>
+              )}
             </div>
 
             {/* Buyurtmani boshqa odam oladimi */}

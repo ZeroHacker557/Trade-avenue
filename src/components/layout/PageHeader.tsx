@@ -1,4 +1,4 @@
-import { ArrowLeft, Heart, Search } from 'lucide-react'
+import { ArrowLeft, ListChecks, Search } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
 import { PageTitle } from './PageTitle'
 import { useT } from '../../i18n'
@@ -62,7 +62,7 @@ export function PageHeader({ title, shortTitle, onBack, onSearch, onFavorites }:
         )}
         {onFavorites && (
           <IconButton label={t('favorites.title')} onClick={onFavorites}>
-            <Heart />
+            <ListChecks />
           </IconButton>
         )}
       </div>

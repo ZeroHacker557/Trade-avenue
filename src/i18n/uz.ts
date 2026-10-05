@@ -92,6 +92,16 @@ export const uz = {
   'product.lowStockPack': 'Omborda {count} quti qoldi',
   'product.pack': '{count} dona',
   'product.unitPrice': '1 donasi {price}',
+  'product.tiersTitle': 'Ko‘p olsangiz — arzonroq',
+  'product.tierRow': '{min} {unit} va undan ko‘p',
+  'product.unitPack': 'quti',
+  'product.unitPiece': 'dona',
+  'product.tierShort': '{min}+ dan −{percent}%',
+  'product.retail': 'Tavsiya etilgan narx',
+  'product.retailPer': '{price} / dona',
+  'product.profit': 'Foydangiz: {amount} / dona ({percent}%)',
+  'cart.tierApplied': 'Ulgurji chegirma −{percent}%',
+  'cart.tierNext': 'Yana {left} {unit} qo‘shsangiz −{percent}%',
   'product.addedToCart': "{name} savatga qo'shildi",
 
   // ── Sharhlar ──
@@ -137,6 +147,10 @@ export const uz = {
   'checkout.discount': 'Chegirma',
   'checkout.delivery': 'Yetkazib berish',
   'checkout.deliveryFree': 'Bepul',
+  'checkout.deliveryDate': 'Yetkazish sanasi',
+  'checkout.cutoffHint': '{time} gacha berilgan buyurtma ertaga yetkaziladi',
+  'checkout.routeDays': 'Do‘koningizga yetkazish kunlari: {days}',
+  'orders.deliveryOn': 'Yetkazish: {date}',
   'checkout.minOrder': 'Minimal buyurtma summasi — {amount}',
   'checkout.minOrderLeft': 'Buyurtma berish uchun yana {amount} qo‘shing',
   'checkout.total': 'Jami:',
@@ -228,6 +242,8 @@ export const uz = {
   'favorites.title': 'Doimiy ro‘yxat',
   'favorites.empty': 'Doimiy ro‘yxat hali bo‘sh',
   'favorites.emptyText': 'Har safar oladigan tovarlaringizni belgilab qo‘ying — keyingi buyurtma bir necha bosishda tayyor bo‘ladi.',
+  'favorites.addAll': 'Hammasini savatga qo‘shish',
+  'favorites.addAllHint': 'Miqdor oxirgi buyurtmangizdagidek qo‘yiladi — savatda o‘zgartirasiz',
 
   // ── Profil ──
   'profile.title': 'Profil',
