@@ -18,7 +18,7 @@ export type CellStyle = 'text' | 'money' | 'number' | 'percent' | 'bold' | 'mone
 
 export type SheetSpec = {
   name: string
-  /** Sarlavha qatori — yashil fonda, qalin, muzlatilgan. */
+  /** Sarlavha qatori — rangli fonda, qalin, qotirilgan (freeze). */
   headers: string[]
   rows: Cell[][]
   /** Ustun kengligi (belgi soni). Berilmasa mazmunidan hisoblanadi. */

@@ -15,7 +15,7 @@ import { productThumb } from '../../utils/product-image'
 /**
  * Kategoriya ichidagi joylashuv — bitta tekis ro'yxat:
  *
- *   [Musa]          ← sarlavha (bo'lim)
+ *   [Coca-Cola]     ← sarlavha (bo'lim)
  *     mahsulot
  *     mahsulot
  *   [Future Fruit]
@@ -331,7 +331,7 @@ export function SectionsPage() {
             value={editing.name}
             onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter') void saveSection() }}
-            placeholder="Musa, Future Fruit, BissGo..."
+            placeholder="Coca-Cola, Pepsi, Nestle..."
           />
 
           <label className="adm-label mt-4">Nomi (ruscha)</label>

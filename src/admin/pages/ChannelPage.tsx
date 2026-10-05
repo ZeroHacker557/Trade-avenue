@@ -440,7 +440,7 @@ export function ChannelPage() {
               rows={7}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={'🔥 Yangi aksiya!\n\nBarcha muzqaymoqlarga 20% chegirma — faqat shu hafta.'}
+              placeholder={'🔥 Yangi aksiya!\n\nBarcha ichimliklarga 20% chegirma — faqat shu hafta.'}
               disabled={running}
               maxLength={3500}
             />
@@ -749,7 +749,7 @@ function PollForm({
         className="adm-input"
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        placeholder="Qaysi ta’mdagi muzqaymoqni qo‘shaylik?"
+        placeholder="Qaysi brenddagi tovarni qo‘shaylik?"
         maxLength={300}
         disabled={busy}
       />
@@ -940,7 +940,7 @@ function ConnectionCard({
           className="adm-input flex-1"
           value={chatInput}
           onChange={(e) => onInput(e.target.value)}
-          placeholder="@musa_uz, t.me/musa_uz yoki -100…"
+          placeholder="@tradeavenue_uz, t.me/tradeavenue_uz yoki -100…"
           disabled={connecting}
           aria-label="Kanal manzili"
         />

@@ -19,9 +19,9 @@ export type CardInput = {
   products: CardProduct[]
   /** Sarlavhaning oq qatori: «BUGUN BUYURTMA BERING —». */
   title: string
-  /** Sarlavhaning sariq qatori: «MUZDEK HOLDA YETKAZAMIZ». */
+  /** Sarlavhaning amber qatori: «ULGURJI NARXLARDA». */
   accent: string
-  /** Pastki chap: «@musauz_bot». */
+  /** Pastki chap: «@tradeavenue_bot». */
   footer: string
   /** Pastki o‘ng: «Yetkazish 15 000 so‘m». */
   footerNote: string
@@ -33,17 +33,16 @@ export const CARD_WIDTH = 1080
 export const CARD_HEIGHT = 1350
 
 const C = {
-  green: '#0a7a3d',
-  greenDeep: '#05522a',
-  greenBright: '#14a352',
-  yellow: '#ffd43b',
-  gold: '#f5b800',
-  blue: '#1f3f9e',
-  ink: '#10231a',
-  muted: '#5d6f64',
+  blue: '#1d4ed8',
+  blueDeep: '#0f1f4d',
+  blueBright: '#2563eb',
+  amber: '#fbbf24',
+  amberDeep: '#f59e0b',
+  ink: '#0f172a',
+  muted: '#5b6b82',
   red: '#e8453c',
   white: '#ffffff',
-  tile: '#f1f6f2',
+  tile: '#eef1f6',
 }
 
 type Style = Record<string, string | number>
@@ -60,37 +59,35 @@ export function som(value: number): string {
   return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
-/** Qor parchasi — oq chiziqlardan (emoji shrifti kerak emas). */
-function snowflake(size: number, opacity: number, style: Style): Node {
-  const arms = [0, 60, 120].map((deg) =>
-    h('div', {
-      position: 'absolute',
-      left: size / 2 - size * 0.035,
-      top: 0,
-      width: size * 0.07,
-      height: size,
-      borderRadius: size,
-      background: C.white,
-      transform: `rotate(${deg}deg)`,
-    }),
-  )
-  return h('div', { position: 'absolute', width: size, height: size, opacity, ...style }, ...arms)
-}
-
+/** Brend belgisi: oq plita ustida «TA» — favicon bilan bir xil g'oya. */
 function logo(): Node {
   return h(
     'div',
     {
       alignItems: 'center',
-      justifyContent: 'center',
-      width: 220,
+      gap: 16,
       height: 84,
+      padding: '0 26px 0 14px',
       borderRadius: 24,
-      background: `linear-gradient(180deg, #fff3a6 0%, ${C.yellow} 40%, ${C.gold} 100%)`,
-      border: '4px solid #c98f00',
+      background: C.white,
       boxShadow: '0 10px 24px rgba(0,0,0,0.25)',
     },
-    h('div', { fontFamily: 'Archivo Black', fontSize: 58, letterSpacing: 2, color: C.blue, marginTop: 4 }, 'MUSA'),
+    h(
+      'div',
+      {
+        width: 58,
+        height: 58,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `linear-gradient(135deg, ${C.blueBright} 0%, #1e3a8a 100%)`,
+        fontFamily: 'Archivo Black',
+        fontSize: 30,
+        color: C.white,
+      },
+      'TA',
+    ),
+    h('div', { fontFamily: 'Archivo Black', fontSize: 36, letterSpacing: 0.5, color: C.ink, marginTop: 2 }, 'Trade Avenue'),
   )
 }
 
@@ -157,8 +154,8 @@ function productCard(p: CardProduct, slot: Slot): Node {
   const price = h(
     'div',
     { marginTop: slot.dir === 'v' ? 'auto' : 18, alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 },
-    h('div', { fontSize: slot.price, fontWeight: 800, color: C.green, lineHeight: 1 }, som(p.price)),
-    h('div', { fontSize: small, fontWeight: 700, color: C.green, marginBottom: slot.price * 0.08 }, 'so‘m'),
+    h('div', { fontSize: slot.price, fontWeight: 800, color: C.blue, lineHeight: 1 }, som(p.price)),
+    h('div', { fontSize: small, fontWeight: 700, color: C.blue, marginBottom: slot.price * 0.08 }, 'so‘m'),
     discount > 0
       ? h('div', { fontSize: small * 0.92, fontWeight: 600, color: C.muted, textDecoration: 'line-through', marginBottom: slot.price * 0.1, marginLeft: 4 }, som(p.oldPrice!))
       : null,
@@ -181,7 +178,7 @@ function productCard(p: CardProduct, slot: Slot): Node {
       padding: pad,
       borderRadius: 36,
       background: C.white,
-      boxShadow: '0 18px 40px rgba(0,30,10,0.28)',
+      boxShadow: '0 18px 40px rgba(5,12,40,0.3)',
       position: 'relative',
       flexShrink: 0,
     },
@@ -206,14 +203,12 @@ export function cardTree(input: CardInput): Node {
       position: 'relative',
       fontFamily: 'Montserrat',
       padding: '44px 48px 40px',
-      background: `linear-gradient(160deg, ${C.greenBright} 0%, ${C.green} 45%, ${C.greenDeep} 100%)`,
+      background: `linear-gradient(160deg, ${C.blueBright} 0%, ${C.blue} 45%, ${C.blueDeep} 100%)`,
       overflow: 'hidden',
     },
-    // Fon: qor parchalari va yorug‘ dog‘
+    // Fon: yorug' dog'lar
     h('div', { position: 'absolute', top: -260, right: -200, width: 720, height: 720, borderRadius: 720, background: 'rgba(255,255,255,0.10)' }),
-    snowflake(150, 0.12, { top: 210, right: 40 }),
-    snowflake(90, 0.14, { top: 40, left: 520 }),
-    snowflake(120, 0.08, { bottom: 140, left: -30 }),
+    h('div', { position: 'absolute', bottom: -220, left: -160, width: 520, height: 520, borderRadius: 520, background: 'rgba(251,191,36,0.10)' }),
     // Yuqori qator
     h(
       'div',
@@ -230,7 +225,7 @@ export function cardTree(input: CardInput): Node {
       'div',
       { flexDirection: 'column', marginTop: 30 },
       h('div', { fontSize: 62, fontWeight: 800, color: C.white, lineHeight: 1.08, letterSpacing: -1 }, input.title.toUpperCase()),
-      h('div', { fontSize: 62, fontWeight: 800, color: C.yellow, lineHeight: 1.08, letterSpacing: -1, marginTop: 6 }, input.accent.toUpperCase()),
+      h('div', { fontSize: 62, fontWeight: 800, color: C.amber, lineHeight: 1.08, letterSpacing: -1, marginTop: 6 }, input.accent.toUpperCase()),
     ),
     // Kartochkalar — soniga qarab joylashadi (gridFor)
     h(
@@ -249,10 +244,10 @@ export function cardTree(input: CardInput): Node {
         background: C.white,
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: '0 14px 30px rgba(0,30,10,0.25)',
+        boxShadow: '0 14px 30px rgba(5,12,40,0.25)',
       },
       h('div', { fontSize: 36, fontWeight: 800, color: C.ink }, input.footer),
-      h('div', { fontSize: 28, fontWeight: 800, color: C.green }, input.footerNote),
+      h('div', { fontSize: 28, fontWeight: 800, color: C.blue }, input.footerNote),
     ),
   )
 }

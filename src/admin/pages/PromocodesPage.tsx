@@ -193,7 +193,7 @@ export function PromocodesPage() {
                 className="adm-input font-mono uppercase"
                 value={draft.code}
                 onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })}
-                placeholder="MUSA10"
+                placeholder="TRADE10"
               />
             </div>
 

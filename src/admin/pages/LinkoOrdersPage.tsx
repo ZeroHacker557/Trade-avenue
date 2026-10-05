@@ -20,7 +20,7 @@ type LinkoMark = {
   skipped?: string[]
 }
 
-/** MUSA holati → Linko'da bo'lishi kerak bo'lgan holat (server bilan bir xil). */
+/** Bizdagi holat → Linko'da bo'lishi kerak bo'lgan holat (server bilan bir xil). */
 const EXPECTED: Record<string, string> = {
   'Yangi': 'not_delivered',
   'Qabul qilindi': 'not_delivered',

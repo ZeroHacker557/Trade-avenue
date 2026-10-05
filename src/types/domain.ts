@@ -44,7 +44,7 @@ export type Product = {
   /** Hozir amal qilayotgan vaqtli aksiya (ilovada hisoblanadi). */
   promotion?: { id: string; title: string; percent: number; endsAt: string } | null
   /**
-   * O'ram (quti) — mahsulot shuncha donadan sotiladi, masalan sirok 30 tadan.
+   * O'ram (quti) — mahsulot shuncha donadan sotiladi, masalan ichimlik blokda 6 tadan.
    * Bazada `price` va `stock` DONA hisobida (Linko shunday beradi); mini
    * app yuklashda narxni o'ramga ko'paytiradi, qoldiqni o'ramga bo'ladi.
    * 1 yoki yo'q — oddiy mahsulot.
@@ -78,7 +78,7 @@ export type Product = {
   stock?: number
   /** Ro'yxatdagi tartib — admin panelda belgilanadi. Kichik raqam oldinda. */
   order?: number
-  /** Kategoriya ichidagi bo'lim (masalan «Musa», «Future Fruit»). */
+  /** Kategoriya ichidagi bo'lim (masalan «Coca-Cola», «Pepsi»). */
   sectionId?: string | null
   /** Bosh sahifadagi «Mashhur mahsulotlar» qatorida ko'rsatiladi. */
   popular?: boolean

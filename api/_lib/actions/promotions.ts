@@ -5,7 +5,7 @@ type Result = Record<string, unknown>
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
 /**
- * Vaqtli aksiya: «Juma 18:00 dan yakshanba 23:59 gacha muzqaymoq −20%».
+ * Vaqtli aksiya: «Juma 18:00 dan yakshanba 23:59 gacha ichimliklar −20%».
  *
  * Aksiya o'zi yoqiladi va o'zi o'chadi — boshlanish va tugash vaqti
  * bo'yicha. `active` — qo'lda to'xtatib qo'yish uchun (vaqti kelgan

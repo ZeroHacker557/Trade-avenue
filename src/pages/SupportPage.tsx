@@ -9,15 +9,15 @@ import {
   Headphones,
   Clock,
   CheckCircle2,
-  ChefHat,
-  IceCreamCone,
-  Snowflake,
+  BadgePercent,
+  Boxes,
+  Truck,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { BRAND } from '../config/brand'
 import { DEFAULT_CONTACT, phoneHref, telegramHref, type ContactInfo } from '../config/contact'
 import { subscribeToContact } from '../lib/firebase'
-import { useT } from '../i18n'
+import { useI18n, useT } from '../i18n'
 import { PageTitle } from '../components/layout/PageTitle'
 
 type Props = {
@@ -26,71 +26,71 @@ type Props = {
 
 const faqs_uz = [
   {
-    q: "MUSA mahsulotlari nimasi bilan ajralib turadi?",
-    a: "MUSA — yarim tayyor mahsulotlar, muzqaymoq va siroklar ishlab chiqaradi. Xomashyo har kuni yangi, mahsulot tayyorlangan zahoti shok muzlatishdan o‘tadi. Sun’iy qo‘shimchalar va konservantlar ishlatilmaydi.",
+    q: "Trade Avenue nima?",
+    a: "Trade Avenue — do‘konlar uchun ulgurji savdo xizmati. Katalog, ulgurji narxlar, buyurtma va yetkazish holati — hammasi Telegram ichida, agent kelishini kutmasdan.",
   },
   {
-    q: "Qanday mahsulotlar bor?",
-    a: "Yarim tayyor: chuchvara, manti, somsa, kotlet, naggets, lyulya-kabob, xamir mahsulotlari. Shirinliklar: muzqaymoq va glazurlangan siroklar. To‘liq ro‘yxat va vaznlar katalogda ko‘rsatilgan.",
+    q: "Ilovaga qanday kiraman?",
+    a: "Birinchi kirishda do‘koningiz telefon raqami va agentimiz bergan 6 belgili kod so‘raladi. Kodni bir marta kiritasiz — keyin ilova sizni eslab qoladi.",
   },
   {
-    q: "Mahsulot qanday yetkaziladi?",
-    a: "Toshkent bo‘ylab 24 soat ichida, termo-qopda muzlatilgan holda. Buyurtma holati o‘zgarganda sizga avtomatik bildirishnoma keladi.",
+    q: "Narxlar kimga qanday?",
+    a: "Narxlar ulgurji va do‘koningiz toifasiga bog‘liq. Katalogda ko‘rinayotgan narx — aynan sizning do‘koningiz uchun. Ko‘p miqdorda olganda qo‘shimcha chegirma bo‘lishi mumkin.",
   },
   {
-    q: "Mahsulotni qanday saqlash kerak?",
-    a: "Barcha mahsulotlar muzlatgichda −18°C haroratda saqlanadi — muzqaymoq va siroklar ham. Bir marta erigan mahsulotni qayta muzlatish tavsiya etilmaydi.",
+    q: "Buyurtma qachon yetkaziladi?",
+    a: "Yetkazish kunlari hududingizga qarab belgilanadi. Buyurtma holati o‘zgarganda ilova va bot orqali xabar keladi.",
   },
   {
-    q: "Eng kam buyurtma miqdori bormi?",
-    a: "Yo‘q, hatto bitta paketdan ham buyurtma berishingiz mumkin. Katta summadagi buyurtmalar bepul yetkaziladi — summa rasmiylashtirish sahifasida ko‘rsatiladi.",
+    q: "Eng kam buyurtma summasi bormi?",
+    a: "Ha, minimal summa savat va buyurtma sahifasida ko‘rsatiladi. Yetmasa — qancha qo‘shish kerakligi yozib turiladi.",
   },
   {
     q: "To‘lov qanday amalga oshiriladi?",
-    a: "Naqd pul (yetkazishda) yoki karta orqali o‘tkazma. Karta orqali to‘lasangiz, chekni botga yuboring — operator tekshirib tasdiqlaydi.",
+    a: "Naqd pul (yetkazishda) yoki karta orqali o‘tkazma. Karta orqali to‘lasangiz, buyurtma berishda to‘lov cheki skrinshotini yuklaysiz — menejer tekshirib tasdiqlaydi.",
   },
   {
-    q: "Ulgurji xarid yoki hamkorlik mumkinmi?",
-    a: "Ha. Do‘kon, kafe, restoran va distribyutorlar uchun alohida shartlar bor — quyidagi raqam yoki Telegram orqali bog‘laning.",
+    q: "Har safar bir xil tovar olaman — tezroq qilsa bo‘ladimi?",
+    a: "Ha. Tovarlarni «Doimiy ro‘yxat»ga belgilab qo‘ying yoki «Buyurtmalarim»dan «Qayta buyurtma» tugmasini bosing — savat bir bosishda to‘ladi.",
   },
   {
-    q: "Promo kod qanday ishlatiladi?",
+    q: "Promokod qanday ishlatiladi?",
     a: "Buyurtma berish sahifasida «Promokod» maydoniga kodingizni kiriting va «Qo‘llash» tugmasini bosing. Chegirma avtomatik qo‘shiladi.",
   },
 ]
 
 const faqs_ru = [
   {
-    q: "Чем отличается продукция MUSA?",
-    a: "MUSA производит полуфабрикаты, мороженое и сырки. Сырьё свежее каждый день, продукт сразу после приготовления проходит шоковую заморозку. Без искусственных добавок и консервантов.",
+    q: "Что такое Trade Avenue?",
+    a: "Trade Avenue — сервис оптовых закупок для магазинов. Каталог, оптовые цены, заказы и статус доставки — всё в Telegram, без ожидания агента.",
   },
   {
-    q: "Какие есть продукты?",
-    a: "Полуфабрикаты: пельмени, манты, самса, котлеты, наггетсы, люля-кебаб, тестовые изделия. Десерты: мороженое и глазированные сырки. Полный список и вес указаны в каталоге.",
+    q: "Как войти в приложение?",
+    a: "При первом входе понадобятся номер телефона магазина и 6-значный код от нашего агента. Код вводится один раз — дальше приложение вас запомнит.",
   },
   {
-    q: "Как доставляется заказ?",
-    a: "По Ташкенту — в течение 24 часов, в термосумке и замороженном виде. При изменении статуса заказа вы получите уведомление.",
+    q: "Какие цены для моего магазина?",
+    a: "Цены оптовые и зависят от категории вашего магазина. В каталоге показана цена именно для вас. При крупном заказе может действовать дополнительная скидка.",
   },
   {
-    q: "Как хранить продукт?",
-    a: "Все продукты хранятся в морозильной камере при −18°C — мороженое и сырки тоже. Повторная заморозка размороженного продукта не рекомендуется.",
+    q: "Когда доставят заказ?",
+    a: "Дни доставки зависят от вашего района. При изменении статуса заказа придёт уведомление в приложении и в боте.",
   },
   {
-    q: "Есть ли минимальный заказ?",
-    a: "Нет, заказать можно даже один пакет. Крупные заказы доставляются бесплатно — сумма указана на странице оформления.",
+    q: "Есть ли минимальная сумма заказа?",
+    a: "Да, минимальная сумма показана в корзине и при оформлении. Если не хватает — подскажем, сколько добавить.",
   },
   {
-    q: "Как осуществляется оплата?",
-    a: "Наличными при доставке или переводом на карту. При оплате картой отправьте чек боту — оператор проверит и подтвердит.",
+    q: "Как происходит оплата?",
+    a: "Наличными при доставке или переводом на карту. При оплате картой при оформлении загрузите скриншот чека — менеджер проверит и подтвердит.",
   },
   {
-    q: "Возможна ли оптовая закупка или сотрудничество?",
-    a: "Да. Для магазинов, кафе, ресторанов и дистрибьюторов действуют отдельные условия — свяжитесь по телефону или в Telegram ниже.",
+    q: "Я каждый раз беру одно и то же — можно быстрее?",
+    a: "Да. Отметьте товары в «Постоянном списке» или нажмите «Повторить заказ» в разделе «Мои заказы» — корзина соберётся в одно касание.",
   },
   {
     q: "Как использовать промокод?",
-    a: "На странице оформления заказа введите код в поле «Промокод» и нажмите «Применить». Скидка добавится автоматически.",
+    a: "На странице оформления введите код в поле «Промокод» и нажмите «Применить». Скидка добавится автоматически.",
   },
 ]
 
@@ -126,8 +126,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 export function SupportPage({ onBack }: Props) {
   const t = useT()
-  // detect lang from localStorage
-  const lang = (localStorage.getItem('taLang') ?? 'uz') as 'uz' | 'ru'
+  const { lang } = useI18n()
   const faqs = lang === 'ru' ? faqs_ru : faqs_uz
   // Aloqa ma'lumotlari admin paneldan (Sozlamalar → «Biz bilan aloqa»)
   const [contact, setContact] = useState<ContactInfo>(DEFAULT_CONTACT)
@@ -165,14 +164,14 @@ export function SupportPage({ onBack }: Props) {
 
   const about = lang === 'ru'
     ? [
-        { icon: Snowflake, title: 'Шоковая заморозка', text: 'Продукт замораживается сразу после приготовления.' },
-        { icon: ChefHat, title: 'Свежее сырьё', text: 'Мясо, тесто и молочные продукты — свежие каждый день.' },
-        { icon: IceCreamCone, title: 'Широкий ассортимент', text: 'Полуфабрикаты, мороженое и глазированные сырки.' },
+        { icon: BadgePercent, title: 'Оптовые цены', text: 'Цена в каталоге — именно для вашего магазина.' },
+        { icon: Boxes, title: 'Широкий ассортимент', text: 'Напитки, бакалея, сладости, бытовая химия и другое.' },
+        { icon: Truck, title: 'Доставка до магазина', text: 'Привезём по графику вашего района.' },
       ]
     : [
-        { icon: Snowflake, title: 'Shok muzlatish', text: "Mahsulot tayyorlangan zahoti −18°C da muzlatiladi." },
-        { icon: ChefHat, title: 'Yangi xomashyo', text: "Go‘sht, xamir va sut mahsulotlari har kuni yangi." },
-        { icon: IceCreamCone, title: 'Keng assortiment', text: 'Yarim tayyor mahsulotlar, muzqaymoq va siroklar.' },
+        { icon: BadgePercent, title: 'Ulgurji narxlar', text: 'Katalogdagi narx — aynan sizning do‘koningiz uchun.' },
+        { icon: Boxes, title: 'Keng assortiment', text: 'Ichimliklar, bakaleya, shirinliklar, maishiy kimyo va boshqalar.' },
+        { icon: Truck, title: 'Do‘kongacha yetkazish', text: 'Hududingiz jadvali bo‘yicha olib boramiz.' },
       ]
 
   const features = lang === 'ru'
@@ -306,7 +305,7 @@ export function SupportPage({ onBack }: Props) {
         </div>
       </section>
 
-      {/* MUSA haqida */}
+      {/* Trade Avenue haqida */}
       <section
         className="px-5 pt-7 sm:px-10"
         style={{ animation: 'fadeInUp 0.4s ease 0.12s both' }}

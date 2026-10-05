@@ -13,7 +13,7 @@ import { formatPrice } from '../../data'
 /**
  * Linko (SFA) integratsiyasi.
  *
- * Oqim bir tomonlama: Linko → MUSA. Linko katalogining nusxasi shu
+ * Oqim bir tomonlama: Linko → Trade Avenue. Linko katalogining nusxasi shu
  * yerda ko'rinadi, admin esa kerakli pozitsiyani do'kondagi mahsulotga
  * bog'laydi. Narx va qoldiq faqat BOG'LANGANLARIGA tushadi — Linko'dagi
  * hamma pozitsiya do'konga chiqib ketmasligi uchun.
@@ -53,7 +53,7 @@ export function LinkoPage() {
 
   /*
    * Nomi bo'yicha taklif. Ikki tizimda nomlar boshqacha yozilgan
-   * («Musa Chuchvara 500gr» ⇄ «Musa Muzlatilgan Chuchvara Pelmeni 500 gr»),
+   * («Coca-Cola 1.5L» ⇄ «Coca-Cola gazli ichimlik 1,5 L»),
    * shuning uchun aynan mos kelishini kutib bo'lmaydi. Taklif AVTOMATIK
    * bog'lanmaydi — admin bir bosish bilan tasdiqlaydi.
    */

@@ -48,7 +48,7 @@ type OrderDoc = {
 }
 
 /**
- * MUSA holati → Linko holati.
+ * Trade Avenue holati → Linko holati.
  *
  * Linko to'rtta qiymatni qabul qiladi: `not_delivered`, `given`,
  * `delivered`, `cancelled`. Bizdagi «Yangi» va «Qabul qilindi» hali
@@ -115,7 +115,7 @@ async function syncMarket(
   settings: LinkoSettings,
 ): Promise<{ id: number | null; serviceId: string }> {
   const customer = order.customer ?? {}
-  const serviceId = `musa-${order.userId ?? 'mehmon'}`
+  const serviceId = `ta-${order.userId ?? 'mehmon'}`
 
   const payload = [{
     service_id: serviceId,
@@ -212,7 +212,7 @@ export async function pushOrder(orderId: string, order: OrderDoc): Promise<Resul
     // ── Buyurtma ──
     const cash = isCashPayment(text(order.paymentMethod))
     const payload = [{
-      service_id: `musa-${orderId}`,
+      service_id: `ta-${orderId}`,
       ...(order.linko?.orderId ? { linko_id: order.linko.orderId } : {}),
       payment_type: cash ? 'cash' : 'bank',
       // Karta orqali to'lov Linko'da alohida nom bilan ko'rinadi
@@ -312,7 +312,7 @@ export async function linkoPushOrder(_staff: unknown, body: Record<string, unkno
  * mijozning Linko'dagi HOZIRGI ismi o'qib olinadi va o'zgarmasdan qaytadi
  * (qo'lda o'zgartirilgan nom ustidan yozilmasin). Agent, narx ro'yxati,
  * manzil yuborilmaydi. Mijozlar — Linko'ga tushgan buyurtmalardagi
- * `userId` lar (`service_id: musa-<id>`); Linko'da ular buyurtmadagi ism
+ * `userId` lar (`service_id: ta-<id>`); Linko'da ular buyurtmadagi ism
  * bo'yicha qidiriladi va `service_id` bilan aniq ajratiladi.
  * `userId` berilsa — faqat o'sha mijoz (sinov uchun).
  */
@@ -352,7 +352,7 @@ export async function linkoSyncMarketTypes(body: Record<string, unknown> = {}): 
   const errors: string[] = []
 
   for (const [id, candidates] of names) {
-    const serviceId = `musa-${id}`
+    const serviceId = `ta-${id}`
     let row: MarketRow | undefined
     for (const name of candidates) {
       const res = await linkoGet<{ results?: MarketRow[] }>('markets/', { search: name, limit: 50 }, settings)

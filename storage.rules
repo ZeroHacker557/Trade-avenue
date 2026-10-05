@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// MUSA Firebase Storage qoidalari
+// Trade Avenue Firebase Storage qoidalari
 //
 // Mahsulot rasmlarini admin panel brauzerdan to'g'ridan-to'g'ri yuklaydi,
 // shuning uchun bu yerda rol tekshiriladi. Bot esa Admin SDK orqali

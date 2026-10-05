@@ -3,13 +3,13 @@
  * YAQINLASHTIRIB solishtirish.
  *
  * Nega kerak? Ikki tizimda nomlar boshqacha yozilgan:
- *   MUSA  — «Musa Muzlatilgan Chuchvara Pelmeni 500 gr»
- *   Linko — «Musa Chuchvara 500gr»
+ *   Katalog — «Coca-Cola gazli ichimlik 1,5 L»
+ *   Linko   — «Coca-Cola 1.5L»
  * Aynan mos keladigani deyarli yo'q, shuning uchun so'zlar bo'yicha
  * o'xshashlik hisoblanadi.
  *
  * Natija AVTOMATIK bog'lanmaydi — faqat taklif bo'lib chiqadi va
- * admin tasdiqlaydi. Sababi: sinovda «Hamir 500gr» ikkita turli MUSA
+ * admin tasdiqlaydi. Sababi: sinovda «Hamir 500gr» ikkita turli katalog
  * mahsulotiga bir xil ball bilan mos tushdi. Bunday hollarda qaysi
  * biri to'g'riligini faqat odam biladi.
  */
@@ -33,7 +33,7 @@ function normalize(name: string): string {
  * o'xshashlikni anglatmaydi, shuning uchun hisobga olinmaydi.
  */
 const COMMON = new Set([
-  'musa', 'muzlatilgan', 'tayyor', 'yarim', 'dona', 'tali', 'talik', 'ta',
+  'gazli', 'ichimlik', 'dona', 'tali', 'talik', 'ta',
   'sht', 'шт', 'gr', 'g', 'kg', 'ml', 'l', 'new', 'yangi',
 ])
 

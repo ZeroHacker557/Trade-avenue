@@ -73,7 +73,7 @@ export async function settingsSave(actor: Staff, body: Record<string, unknown>) 
     const email = field('email', 120)
     if (!phone) throw new Error('Telefon raqamini kiriting')
     if (phone.replace(/\D/g, '').length < 7) throw new Error('Telefon raqami noto‘g‘ri')
-    if (telegram && !/^[A-Za-z][\w]{3,31}$/.test(telegram)) throw new Error('Telegram username noto‘g‘ri (masalan @musa_support)')
+    if (telegram && !/^[A-Za-z][\w]{3,31}$/.test(telegram)) throw new Error('Telegram username noto‘g‘ri (masalan @tradeavenue_support)')
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email noto‘g‘ri')
     await db.collection('settings').doc('contact').set({
       phone,
@@ -141,7 +141,7 @@ export async function settingsTestGroup(actor: Staff, body: Record<string, unkno
 
   const result = await sendMessage(
     chatId,
-    '✅ <b>MUSA admin panel</b>\n\nGuruh ulandi — yangi buyurtmalar shu yerga tushadi.',
+    '✅ <b>Trade Avenue admin panel</b>\n\nGuruh ulandi — yangi buyurtmalar shu yerga tushadi.',
   )
   if (!result.ok) throw new Error(`Yuborib bo‘lmadi: ${result.error}`)
   return { ok: true }

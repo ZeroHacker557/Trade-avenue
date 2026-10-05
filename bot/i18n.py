@@ -327,15 +327,15 @@ TEXTS = {
         "uz": (
             "🛒 <b>Savatingiz kutib turibdi</b>\n\n"
             "{count} ta mahsulot hali buyurtma qilinmadi.\n"
-            "Muzlatilgan mahsulotlar tez tugaydi — hozir rasmiylashtirsangiz, "
-            "bugunoq yetkazib beramiz.\n\n"
+            "Hozir rasmiylashtirsangiz, buyurtmangizni tezroq "
+            "yetkazib beramiz — tovarlar omborda kutib turibdi.\n\n"
             "👇 Savatni ochib, buyurtmani yakunlang:"
         ),
         "ru": (
             "🛒 <b>Ваша корзина ждёт</b>\n\n"
             "{count} товаров ещё не заказаны.\n"
-            "Замороженные товары быстро разбирают — оформите сейчас, "
-            "и доставим сегодня же.\n\n"
+            "Оформите сейчас — и мы доставим заказ быстрее, "
+            "товары уже ждут на складе.\n\n"
             "👇 Откройте корзину и завершите заказ:"
         ),
     },

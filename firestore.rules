@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// MUSA Shop Firestore xavfsizlik qoidalari
+// Trade Avenue Firestore xavfsizlik qoidalari
 //
 // Asosiy tamoyil: mijoz brauzeri hech qachon pul bilan bog'liq
 // ma'lumotni yoza olmaydi. Buyurtma, promokod va statuslar faqat

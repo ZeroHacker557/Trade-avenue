@@ -72,7 +72,7 @@ export function LoginPage() {
               spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@musa.uz"
+              placeholder="admin@tradeavenue.uz"
               required
             />
           </div>

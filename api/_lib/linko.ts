@@ -20,7 +20,7 @@ const PAGE_SIZE = 1000
 const MAX_RECORDS = 20000
 
 export type LinkoSettings = {
-  /** `https://musa.linko.uz` ko'rinishida, oxirida `/` siz. */
+  /** `https://nom.linko.uz` ko'rinishida, oxirida `/` siz. */
   baseUrl: string
   /** Qaysi narxlar ro'yxatidan narx olinadi. 0 — tanlanmagan. */
   priceListId: number
@@ -298,20 +298,20 @@ export async function linkoProbe(params: { product?: string; order?: string; pat
 
   /*
    * Oxirgi kunlardagi buyurtmalar (`last_tm` bo'yicha): bizning (service_id
-   * «musa-») buyurtmalarimiz va taqqoslash uchun agentlar kiritgan oddiy
+   * «ta-») buyurtmalarimiz va taqqoslash uchun agentlar kiritgan oddiy
    * buyurtmalardan bir nechtasi — qaysi maydon farq qilishini ko'rish uchun.
    */
   const since = Math.floor(Date.now() / 1000) - 3 * 86400
-  const musaOrders: unknown[] = []
+  const ourOrders: unknown[] = []
   const agentOrders: unknown[] = []
   let scanned = 0
-  for (let offset = 0; offset < MAX_RECORDS && (order || musaOrders.length < 10); offset += PAGE_SIZE) {
+  for (let offset = 0; offset < MAX_RECORDS && (order || ourOrders.length < 10); offset += PAGE_SIZE) {
     const page = await probeOne('GET', `${ext}orders/?last_tm=${since}&limit=${PAGE_SIZE}&offset=${offset}`, config, 50_000_000)
     const rows = ((page.body as { results?: { id?: number; service_id?: string | null; status?: string }[] })?.results) ?? []
     scanned += rows.length
     for (const row of rows) {
-      const mine = String(row.service_id ?? '').startsWith('musa-') || (order && row.id === order)
-      if (mine) musaOrders.push(row)
+      const mine = String(row.service_id ?? '').startsWith('ta-') || (order && row.id === order)
+      if (mine) ourOrders.push(row)
       else if (agentOrders.length < 3 && (row.status === 'delivered' || row.status === 'given')) agentOrders.push(row)
     }
     if (rows.length < PAGE_SIZE) break
@@ -319,6 +319,6 @@ export async function linkoProbe(params: { product?: string; order?: string; pat
 
   return {
     ok: true, docs, root, syncOrder, syncOrderGet, balanceSample, balanceRows,
-    orders: { since, scanned, musa: musaOrders.slice(-10), agents: agentOrders },
+    orders: { since, scanned, ours: ourOrders.slice(-10), agents: agentOrders },
   }
 }

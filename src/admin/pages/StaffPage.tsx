@@ -299,7 +299,7 @@ export function StaffPage({ me }: { me: Staff }) {
                     autoCapitalize="none"
                     value={draft.email}
                     onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                    placeholder="sardor@musa.uz"
+                    placeholder="sardor@tradeavenue.uz"
                   />
                 </div>
 

@@ -404,11 +404,11 @@ function ContactCard({ settings, busy, onSave }: { settings: ContactInfo; busy: 
         </div>
         <div>
           <label className="adm-label" htmlFor="ct-tg">Telegram (mijozlar xizmati)</label>
-          <input id="ct-tg" className="adm-input" value={form.telegram} onChange={(e) => set('telegram', e.target.value)} placeholder="@musa_support" maxLength={100} />
+          <input id="ct-tg" className="adm-input" value={form.telegram} onChange={(e) => set('telegram', e.target.value)} placeholder="@tradeavenue_support" maxLength={100} />
         </div>
         <div className="sm:col-span-2">
           <label className="adm-label" htmlFor="ct-email">Email</label>
-          <input id="ct-email" className="adm-input" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="info@musa.uz" maxLength={120} />
+          <input id="ct-email" className="adm-input" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="info@tradeavenue.uz" maxLength={120} />
         </div>
         <div className="sm:col-span-2">
           <label className="adm-label" htmlFor="ct-address">Manzil</label>
@@ -441,7 +441,7 @@ function CompanyCard({ settings, busy, onSave }: { settings: CompanySettings; bu
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="adm-label" htmlFor="co-name">Korxona nomi</label>
-          <input id="co-name" className="adm-input" value={form.legalName} onChange={(e) => set('legalName', e.target.value)} placeholder="«MUSA FOOD» MChJ" maxLength={120} />
+          <input id="co-name" className="adm-input" value={form.legalName} onChange={(e) => set('legalName', e.target.value)} placeholder="«TRADE AVENUE» MChJ" maxLength={120} />
         </div>
         <div>
           <label className="adm-label" htmlFor="co-inn">STIR (INN)</label>

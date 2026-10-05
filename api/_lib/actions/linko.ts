@@ -6,17 +6,17 @@ import {
 
 /**
  * Linko (SFA) bilan katalog sinxroni: MAHSULOT, NARX va QOLDIQ
- * Linko'dan MUSA'ga bir tomonlama ko'chiriladi.
+ * Linko'dan Trade Avenue'ga bir tomonlama ko'chiriladi.
  *
  * Nega oraliq `linko_products` to'plami bor?
  *
  * Linko'dagi har pozitsiya avtomatik do'konga chiqib ketmasligi kerak —
  * u yerda sotuvga chiqarilmaydiganlari ham bor. Shuning uchun avval
  * Linko katalogining NUSXASI olinadi, admin esa kerakli pozitsiyani
- * mavjud MUSA mahsulotiga bog'laydi yoki undan yangi mahsulot yaratadi.
+ * mavjud do'kon mahsulotiga bog'laydi yoki undan yangi mahsulot yaratadi.
  * Narx va qoldiq faqat BOG'LANGANLARIGA tushadi.
  *
- * Rasm, tavsif, tarjima va kategoriya MUSA tomonida qoladi: Linko'da
+ * Rasm, tavsif, tarjima va kategoriya bizning tomonda qoladi: Linko'da
  * ular yo'q, har sinxronda ustidan yozilsa admin mehnati yo'qolardi.
  */
 
@@ -225,7 +225,7 @@ async function linkedRows(only?: string[]): Promise<Map<string, MirrorDoc[]>> {
 /**
  * Ulanishni tekshiradi va admin panel uchun ma'lumotnoma qaytaradi:
  * narxlar ro'yxatlari, skladlar, Linko'da nechta mahsulot bor va
- * nechtasi MUSA bilan bog'langan.
+ * nechtasi katalogimiz bilan bog'langan.
  */
 export async function linkoStatus(): Promise<Result> {
   const settings = await readLinkoSettings()
@@ -580,7 +580,7 @@ export async function linkoLink(_staff: unknown, body: Record<string, unknown>):
       oldPrice: null,
       category,
       sectionId: null,
-      // Rasm va tavsif MUSA tomonida qo'shiladi — Linko'da ular yo'q
+      // Rasm va tavsif bizning tomonda qo'shiladi — Linko'da ular yo'q
       images: [],
       thumbs: [],
       optimized: [],

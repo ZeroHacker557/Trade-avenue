@@ -1,20 +1,24 @@
-# MUSA Shop — Telegram Mini App
+# Trade Avenue — do'konlar uchun Telegram mini app
 
-MUSA (muzlatilgan mahsulotlar — yarim tayyor, muzqaymoq, sirok) uchun
-Telegram mini app do'koni:
-React + TypeScript + Tailwind CSS frontend, Vercel serverless API va aiogram
-asosidagi Telegram bot.
+Trade Avenue — ulgurji yetkazib beruvchi va do'konlar orasidagi savdo ilovasi.
+Do'konchi Telegram ichida katalogni ko'radi, o'z narxlarida buyurtma beradi va
+holatini kuzatadi. Ma'lumotlar Linko (SFA) bilan sinxron.
+
+Tarkibi: React + TypeScript + Tailwind CSS (mini app va admin panel),
+Vercel serverless API, aiogram bot, Firebase (Firestore, Auth, Storage).
+
+> Loyiha `ecommercyfor-musa` asosida qurilgan. Ish rejasi va tasdiqlangan
+> qarorlar — [`PLAN.md`](./PLAN.md).
 
 ## Brend
 
 | Element | Qiymat |
 | --- | --- |
-| Asosiy rang | `#0A7A3D` (logo yashili) |
-| Aksent | `#F2C94C` (logo sarig'i) / matn uchun `#A9760A` |
-| Uchinchi rang | `#16359E` (logodagi ko'k yozuv) |
+| Asosiy rang | `#1D4ED8` (ko'k) |
+| Aksent | `#F59E0B` (amber) / matn uchun `#B45309` |
+| Uchinchi rang | `#0F766E` (firuza) |
 | Shriftlar | Archivo Black (sarlavha), Montserrat (matn) |
-| Logotip | `src/images/musa-mark.webp` (belgi), `public/favicon-*.png` |
-| Hero rasm | `src/images/hero-products.webp` |
+| Logotip | `src/images/ta-mark.svg`, `public/favicon-*.png` |
 
 Kompaniya ma'lumotlari (telefon, email, Telegram, bot username) bitta joyda:
 [`src/config/brand.ts`](src/config/brand.ts). Bot tomonida — `bot/config.py`.
@@ -23,90 +27,46 @@ Ranglar `src/styles.css` dagi CSS o'zgaruvchilarida. Komponentlarda hex
 yozilmaydi — faqat `var(--brand)` kabi tokenlar, shu tufayli qorong'i rejim
 bitta blokda hal bo'ladi.
 
-> Firebase loyihasi — `musa-onlineshop`, bot — [@musauz_bot](https://t.me/musauz_bot),
-> mini app — `https://musa-delivery.vercel.app`. Maxfiy qiymatlar (bot tokeni,
-> service account JSON) git'ga tushmaydi — [`DEPLOY.md`](./DEPLOY.md) ga qarang.
-
 ## Tuzilma
 
-- `src/pages` — ekranlar: bosh sahifa, katalog, profil, buyurtmalar, mahsulot detali.
-- `src/components/brand` — logotip komponenti.
+- `src/pages` — ekranlar: bosh sahifa, katalog, buyurtmalar, profil, mahsulot.
 - `src/components` — qayta ishlatiluvchi layout, UI, mahsulot va buyurtma komponentlari.
-- `src/config/brand.ts` — brend va aloqa konstantalari.
-- `src/config/categories.ts` — uchta asosiy yo'nalish (bosh sahifadagi kartalar va katalog menyusi).
+- `src/config` — brend, Firebase, kategoriyalar, aloqa.
 - `src/hooks` — ilovaning UI holati va biznes harakatlari.
 - `src/i18n` — o'zbekcha (asosiy) va ruscha lug'atlar.
-- `src/types` — markazlashtirilgan TypeScript domen turlari.
-- `src/admin/` — veb admin panel (alohida sahifa: `admin.html`, manzil `/admin`).
-- `api/` — Vercel serverless funksiyalari (auth, orders, reviews, promo).
+- `src/courier` — yetkazuvchi (kuryer) sahifasi, mini app ichida.
+- `src/admin` — veb admin panel (`admin.html`, manzil `/admin`).
+- `api/` — Vercel serverless funksiyalari (auth, orders, promo, courier, linko-cron).
 - `api/admin/` — admin panel API'si (Firebase ID token + rol tekshiruvi).
-- `scripts/create-staff.mjs` — birinchi admin hisobini yaratish.
-- `bot/` — aiogram bot va admin panel.
-- `public/images/products` — mahsulot rasmlari (bot admin paneli orqali ham yuklanadi).
+- `bot/` — aiogram bot.
+- `scripts/` — birinchi admin hisobini yaratish va tekshirish.
 
 ## Admin panel
 
 Manzil: `/admin` (lokal ishlab chiqishda `http://localhost:5173/admin.html`).
+Kirish — email va parol (Firebase Authentication). Rollar: `owner`, `admin`, `courier`.
 
-Kirish email va parol bilan — Firebase Authentication. Rollar:
-
-| Rol | Nima qila oladi |
-| --- | --- |
-| `owner` | Hammasi, shu jumladan xodimlarni boshqarish va sozlamalar |
-| `admin` | Buyurtma, mahsulot, mijoz, ommaviy xabar |
-| `courier` | Faqat o'ziga biriktirilgan buyurtmalar va ularning holati |
-
-Birinchi hisobni skript yaratadi (Firebase Console'da qo'lda yaratish shart emas —
-skript rolni custom claim va `staff/{uid}` hujjatiga ham yozadi):
+Birinchi hisob:
 
 ```bash
-node scripts/create-staff.mjs sizning@email.com "Kuchli-Parol-123" owner "Ismingiz"
+node scripts/create-staff.mjs admin@tradeavenue.uz "Kuchli-Parol-123" owner "Ism"
 ```
-
-Kira olmasangiz — sababini shu topadi (hech narsani o'zgartirmaydi):
-
-```bash
-node scripts/check-admin.mjs sizning@email.com
-```
-
-> ⚠️ Loyiha ildizida bir nechta `*firebase-adminsdk*.json` bo'lsa, skriptlar
-> `src/config/firebase.ts` dagi `projectId` ga mos keladiganini tanlaydi.
-> Eski V7 kalitlarini (`ecommercytest`, `v7-savdo`) o'chirib tashlagan
-> ma'qul — ular chalkashlik va xavfsizlik muammosi.
-
-Bo'limlar: boshqaruv paneli (jonli statistika), buyurtmalar (holat va kuryer
-biriktirish), mahsulotlar, kategoriyalar, promokodlar, mijozlar bazasi,
-ommaviy xabar, xodimlar va sozlamalar.
-
-Xabarlarni (yangi buyurtma, holat o'zgarishi, ommaviy xabar, kuryerga
-yuborish) **Telegram Bot API orqali to'g'ridan-to'g'ri Vercel'dan** ketadi —
-lokal bot o'chiq bo'lsa ham ishlaydi. Botda admin panel **yo'q**: u faqat
-mijozlarga xizmat qiladi (katalog tugmasi, telefon, to'lov cheki).
-
-Vercel env o'zgaruvchilari: `BOT_TOKEN`, `FIREBASE_SERVICE_ACCOUNT` va
-`ADMIN_PANEL_URL` (xabarnomadagi tugma shu manzilga olib boradi).
-
-Firebase Console'da yangilanishi kerak: **Firestore → Rules**
-([firestore.rules](./firestore.rules)), **Storage → Rules**
-([storage.rules](./storage.rules)) va **Authentication → Email/Password**.
 
 ## Buyruqlar
 
+`npm` bu kompyuterda buzilgan — paketlar `bun` bilan o'rnatiladi, skriptlar
+esa to'g'ridan-to'g'ri `node` orqali ishlaydi:
+
 ```bash
-npm install
+bun install --no-save
 ```
 
 ```bash
-npm run dev
+node ./node_modules/vite/bin/vite.js
 ```
 
 ```bash
-npm run build
+node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build
 ```
 
-```bash
-npm run lint
-```
-
-Mahsulotlar bazadan (Firestore) keladi va bot admin paneli orqali qo'shiladi —
-`src/data.ts` bo'sh ro'yxat qaytaradi.
+Ishga tushirish va tashqi xizmatlar — [`DEPLOY.md`](./DEPLOY.md).

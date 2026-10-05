@@ -1,7 +1,7 @@
 import { ShoppingBag } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useT } from '../../i18n'
-import { snowBurst } from '../../utils/burst'
+import { confettiBurst } from '../../utils/burst'
 
 type Props = {
   /** «Buyurtmalarim» — oyna shu zahoti yopiladi va sahifa ochiladi. */
@@ -12,8 +12,8 @@ type Props = {
 
 /**
  * «Buyurtma qabul qilindi» — bayram: ✓ belgisi aylana bilan chizilib
- * paydo bo'ladi, atrofga muz kristallari sochiladi (brend: muzlatilgan
- * mahsulot). Tugma bosilishi bilan oyna darhol yo'qoladi — kutish yo'q.
+ * paydo bo'ladi, atrofga brend ranglaridagi konfetti sochiladi.
+ * Tugma bosilishi bilan oyna darhol yo'qoladi — kutish yo'q.
  */
 export function CheckoutSuccess({ onViewOrders, onClose }: Props) {
   const t = useT()
@@ -21,7 +21,7 @@ export function CheckoutSuccess({ onViewOrders, onClose }: Props) {
 
   // Belgi chizilib bo'lgach — sochilish
   useEffect(() => {
-    const timer = setTimeout(() => snowBurst(badge.current), 420)
+    const timer = setTimeout(() => confettiBurst(badge.current), 420)
     return () => clearTimeout(timer)
   }, [])
 

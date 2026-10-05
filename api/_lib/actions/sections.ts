@@ -1,7 +1,7 @@
 import { adminDb } from '../firebase-admin.js'
 
 /**
- * Bo'limlar — kategoriya ichidagi guruhlar («Musa», «Future Fruit»...).
+ * Bo'limlar — kategoriya ichidagi guruhlar («Coca-Cola», «Pepsi»...).
  *
  * `sections/{id}`: { name, category, order }. Mahsulot bo'limga
  * `products/{id}.sectionId` orqali bog'lanadi. Kategoriya NOM bilan

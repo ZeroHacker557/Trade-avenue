@@ -537,7 +537,7 @@ a { color: inherit; text-decoration: none; }
 .search-trigger:active { transform: scale(0.99); }
 
 /* ====== Katalog: bo'lim sarlavhasi ======
-   «Musa  6 ───────» — nom, yonida mahsulotlar soni va so'nuvchi chiziq.
+   «Coca-Cola  6 ───────» — nom, yonida mahsulotlar soni va so'nuvchi chiziq.
    Karta yoki fon emas, oddiy matn: mahsulotlarni ajratib turadi, lekin
    ularning o'zidan diqqatni tortmaydi. */
 .catalog-group + .catalog-group { margin-top: 1.9rem; }

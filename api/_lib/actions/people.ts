@@ -15,8 +15,8 @@ function text(value: unknown): string {
 
 /** Ilova ichidagi bildirishnoma sarlavhasi. */
 const BROADCAST_TITLE: Record<Lang, string> = {
-  uz: 'MUSA xabari',
-  ru: 'Сообщение MUSA',
+  uz: 'Trade Avenue xabari',
+  ru: 'Сообщение Trade Avenue',
 }
 
 /**
@@ -160,7 +160,7 @@ export async function staffSave(actor: Staff, body: Record<string, unknown>) {
   if (!uid && telegramId) {
     await sendMessage(
       telegramId,
-      '👋 <b>Siz MUSA jamoasiga qo‘shildingiz</b>\n\n' +
+      '👋 <b>Siz Trade Avenue jamoasiga qo‘shildingiz</b>\n\n' +
         `Rol: <b>${role === 'courier' ? 'Kuryer' : role === 'admin' ? 'Admin' : 'Ega'}</b>\n` +
         'Buyurtmalar shu chatga tushadi.',
     )

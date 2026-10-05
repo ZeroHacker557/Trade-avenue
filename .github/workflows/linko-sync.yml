@@ -38,7 +38,7 @@ jobs:
           fi
           code=$(curl -sS -o response.json -w '%{http_code}' --max-time 240 \
             -H "x-cron-secret: $CRON_SECRET" \
-            https://musa-delivery.vercel.app/api/linko-cron)
+            https://trade-avenue.vercel.app/api/linko-cron)
           echo "HTTP $code"
           head -c 1500 response.json; echo
           test "$code" = "200"

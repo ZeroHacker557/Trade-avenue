@@ -66,10 +66,10 @@ export const DAILY_DEFAULTS: DailySettings = {
   time: '10:00',
   customers: true,
   channel: false,
-  title: 'Bugun buyurtma bering —',
-  accent: 'Muzdek holda yetkazamiz',
-  text: '❄️ <b>Bugungi tanlov</b>\n\nBugun buyurtma bering — muzdek holda eshigingizgacha yetkazamiz! 👇',
-  textRu: '❄️ <b>Выбор дня</b>\n\nЗакажите сегодня — доставим замороженным прямо к двери! 👇',
+  title: 'Do‘koningiz uchun —',
+  accent: 'Bugungi takliflar',
+  text: '🏪 <b>Bugungi takliflar</b>\n\nDo‘koningiz uchun tovarlarni bugun buyurtma bering — tez yetkazamiz! 👇',
+  textRu: '🏪 <b>Предложения дня</b>\n\nЗакажите товары для магазина сегодня — доставим быстро! 👇',
   button: '🛒 Katalogni ochish',
   buttonRu: '🛒 Открыть каталог',
   count: 4,
@@ -231,7 +231,7 @@ function caption(intro: string, products: Picked[], ru: boolean): string {
 
 async function build(settings: DailySettings, exclude: string[]) {
   const [products, note] = await Promise.all([pickProducts(exclude, settings.chosen, settings.count), deliveryNote()])
-  const bot = String(process.env.BOT_USERNAME || 'musauz_bot').replace(/^@/, '')
+  const bot = String(process.env.BOT_USERNAME || 'tradeavenue_bot').replace(/^@/, '')
   const png = await renderCard({
     products,
     title: settings.title,

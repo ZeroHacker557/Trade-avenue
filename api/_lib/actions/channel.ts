@@ -69,7 +69,7 @@ function friendly(error: string): string {
 
 /**
  * Admin kiritgan qiymat → Telegram `chat_id`.
- * `@musa_uz`, `musa_uz`, `https://t.me/musa_uz` yoki `-100…` qabul qilinadi.
+ * `@tradeavenue_uz`, `tradeavenue_uz`, `https://t.me/tradeavenue_uz` yoki `-100…` qabul qilinadi.
  */
 function readChatRef(value: unknown): string | number {
   const raw = text(String(value ?? ''))

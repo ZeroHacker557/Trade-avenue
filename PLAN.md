@@ -32,9 +32,9 @@ ular mini app orqali tovar buyurtma qiladi.
 ## Bosqichlar
 
 ### 1-bosqich — Tozalash va brend
-- [ ] MUSA brendi, logo, ranglar, matnlar → Trade Avenue (vaqtincha neytral dizayn)
-- [ ] Firebase / bot / domen sozlamalari bo'sh shablonga (yangi loyiha ochilganda to'ldiriladi)
-- [ ] Olib tashlash: onlayn to'lov, ovozlar, sharhlar, kuryer bahosi, bepul yetkazish chizig'i,
+- [x] MUSA brendi, logo, ranglar, matnlar → Trade Avenue (vaqtincha neytral dizayn)
+- [x] Firebase / bot / domen sozlamalari bo'sh shablonga (yangi loyiha ochilganda to'ldiriladi)
+- [x] Olib tashlash: onlayn to'lov, ovozlar, sharhlar, kuryer bahosi, bepul yetkazish chizig'i,
       jonli kuzatish, trafik manbalari, "Miya"
 
 ### 2-bosqich — Do'kon kirishi (Y1, Y12)

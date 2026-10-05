@@ -177,7 +177,7 @@ export function BroadcastPage() {
             rows={7}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={'🎉 Yangi mahsulot!\n\nMUSA plombiri endi katalogda. Buyurtma bering — tez yetkazamiz.'}
+            placeholder={'🎉 Yangi mahsulot!\n\nLipton choyi endi katalogda. Buyurtma bering — tez yetkazamiz.'}
             disabled={running}
             maxLength={3500}
           />
@@ -197,7 +197,7 @@ export function BroadcastPage() {
             rows={7}
             value={textRu}
             onChange={(e) => setTextRu(e.target.value)}
-            placeholder={'🎉 Новинка!\n\nПломбир MUSA уже в каталоге. Закажите — доставим быстро.'}
+            placeholder={'🎉 Новинка!\n\nЧай Lipton уже в каталоге. Закажите — доставим быстро.'}
             disabled={running}
             maxLength={3500}
           />
