@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// MUSA Firebase Storage qoidalari
+//
+// Mahsulot rasmlarini admin panel brauzerdan to'g'ridan-to'g'ri yuklaydi,
+// shuning uchun bu yerda rol tekshiriladi. Bot esa Admin SDK orqali
+// yozadi va qoidalarni chetlab o'tadi.
+//
+// Deploy: firebase deploy --only storage
+// yoki Firebase Console → Storage → Rules ga nusxalang.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function role() {
+      return request.auth != null ? request.auth.token.get('role', '') : '';
+    }
+
+    match /products/{fileName} {
+      // Rasm mijoz ilovasida ko'rinadi — o'qish ochiq
+      allow read: if true;
+      // Yozish faqat admin yoki ega, va faqat 5 MB gacha rasm
+      allow write: if role() in ['owner', 'admin']
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Ochilish reklamasi: rasm va video. Video og'irroq — 40 MB gacha.
+    match /ads/{fileName} {
+      allow read: if true;
+      allow write: if role() in ['owner', 'admin']
+                   && request.resource.size < 40 * 1024 * 1024
+                   && request.resource.contentType.matches('(image|video)/.*');
+    }
+
+    // To'lov cheklari — bot yuklaydi (Admin SDK), mijoz ko'ra olmaydi
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

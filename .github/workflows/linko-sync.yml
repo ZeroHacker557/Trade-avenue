@@ -1,0 +1,44 @@
+# Linko bilan avtomatik ishlash — har 10 daqiqada.
+#
+# /api/linko-cron ni chaqiradi: Linko'ga tushmagan yoki holati
+# yangilanmagan buyurtmalar qayta yuboriladi, qoldiq va narxlar
+# Linko'dan yangilanadi, kechagi kuryer smenalari yopiladi.
+#
+# Vercel'ning bepul rejasida cron kuniga bir marta ishlaydi, bot esa
+# kompyuterda — o'chsa to'xtaydi. GitHub Actions bepul va doim ishlaydi.
+#
+# Sozlash (bir marta): GitHub → repozitoriy → Settings → Secrets and
+# variables → Actions → New repository secret:
+#   Name:  CRON_SECRET
+#   Value: Vercel'dagi CRON_SECRET bilan AYNAN bir xil qiymat
+#
+# Eslatma: GitHub jadvalni ba'zan bir necha daqiqaga kechiktiradi —
+# buyurtmalar baribir yaratilganda va holat o'zgarganda darhol ketadi,
+# bu faqat kafolat.
+name: Linko sinxron
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  # Qo'lda ishga tushirish: Actions → Linko sinxron → Run workflow
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Linko sinxronini chaqirish
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET sozlanmagan (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
+          code=$(curl -sS -o response.json -w '%{http_code}' --max-time 240 \
+            -H "x-cron-secret: $CRON_SECRET" \
+            https://musa-delivery.vercel.app/api/linko-cron)
+          echo "HTTP $code"
+          head -c 1500 response.json; echo
+          test "$code" = "200"

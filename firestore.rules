@@ -1,0 +1,234 @@
+rules_version = '2';
+
+// MUSA Shop Firestore xavfsizlik qoidalari
+//
+// Asosiy tamoyil: mijoz brauzeri hech qachon pul bilan bog'liq
+// ma'lumotni yoza olmaydi. Buyurtma, promokod va statuslar faqat
+// server tomonidan (Vercel serverless funksiyalari yoki bot'ning
+// service account'i orqali) yoziladi.
+//
+// Admin SDK (bot va /api/*) bu qoidalarni butunlay chetlab o'tadi —
+// shuning uchun ular uchun alohida ruxsat yozish shart emas.
+//
+// Deploy:  firebase deploy --only firestore:rules
+// yoki Firebase Console → Firestore → Rules ga nusxalang.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Foydalanuvchi Telegram id'si bilan tizimga kirgan bo'lishi kerak.
+    // uid — Telegram user id'sining matn ko'rinishi (/api/auth beradi).
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == string(userId);
+    }
+
+    // ── Xodimlar (admin panel) ──────────────────────────────
+    // Rol Firebase custom claim'ida turadi — uni faqat Admin SDK
+    // yozadi (scripts/create-staff.mjs va /api/admin/*), shuning uchun
+    // mijoz uni o'zgartira olmaydi.
+    function role() {
+      return request.auth != null ? request.auth.token.get('role', '') : '';
+    }
+    function isStaff() {
+      return role() in ['owner', 'admin', 'courier'];
+    }
+    function isAdmin() {
+      return role() in ['owner', 'admin'];
+    }
+    function isSiteOwner() {
+      return role() == 'owner';
+    }
+
+    // ── Katalog: hamma o'qiydi, hech kim yozmaydi ────────────
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;   // faqat bot (Admin SDK)
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false;   // faqat bot (Admin SDK)
+    }
+
+    // Bo'limlar — kategoriya ichidagi guruhlar. Katalogda sarlavha
+    // bo'lib chiqadi, shuning uchun o'qish ochiq.
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if false;   // faqat /api/admin/action
+    }
+
+    // Vaqtli aksiyalar — katalogda chegirma narxi va taymer bo'lib
+    // ko'rinadi, shuning uchun o'qish ochiq. Narxni baribir server hisoblaydi.
+    match /promotions/{promotionId} {
+      allow read: if true;
+      allow write: if false;   // faqat /api/admin/action
+    }
+
+    // Ochilish reklamasi (ads/splash) — ilova ochilganda, mijoz tizimga
+    // kirishidan OLDIN o'qiladi, shuning uchun o'qish ochiq.
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if false;   // faqat /api/admin/action (ad.save)
+    }
+
+    // ── Profil: faqat o'zinikini ────────────────────────────
+    // Foydalanuvchi ismi, telefoni va manzillarini o'zgartira oladi.
+    // Boshqa maydonlarni (masalan rollarni) o'zgartira olmaydi.
+    match /users/{userId} {
+      // Mijoz o'zinikini, admin esa butun bazani ko'radi (admin panel)
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if false;  // /api/auth yaratadi
+      // `cart` va `cartUpdatedAt` — savat qurilmalar orasida saqlanishi
+      // uchun (src/hooks/use-shop-store.ts). Pulga aloqasi yo'q: narx
+      // baribir serverda qayta hisoblanadi.
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['first_name', 'last_name', 'phone', 'addresses', 'language',
+                                   'cart', 'cartUpdatedAt']);
+      allow delete: if false;
+    }
+
+
+    // ── Buyurtmalar: o'qish mumkin, yozish YO'Q ─────────────
+    // Buyurtmani faqat /api/orders yaratadi (narx serverda hisoblanadi),
+    // statusni faqat bot o'zgartiradi.
+    match /orders/{orderId} {
+      // Mijoz — faqat o'zinikini; admin — hammasini; kuryer — faqat
+      // o'ziga biriktirilganini.
+      allow read: if (signedIn() && resource.data.userId == int(request.auth.uid))
+                  || isAdmin()
+                  || (role() == 'courier' && resource.data.get('courierId', '') == request.auth.uid);
+      // Yozish har doim server orqali: /api/orders va /api/admin/*.
+      allow write: if false;
+
+      // Holat tarixi — faqat xodimga ko'rinadi
+      match /history/{entryId} {
+        allow read: if isStaff();
+        allow write: if false;
+      }
+    }
+
+    // ── Telegram xabarlari hisobi ───────────────
+    // Buyurtma haqida qaysi chatga qanday xabar yuborilgani. Faqat
+    // xodimga ko'rinadi: mijoz o'z buyurtmasini o'qiy oladi, adminlar
+    // va kuryerlar guruhining Telegram ID lari esa unga kerak emas.
+    match /dispatch/{orderId} {
+      allow read: if isStaff();
+      allow write: if false;   // faqat server (Admin SDK)
+    }
+
+    // ── Sharhlar ────────────────────────────────────────────
+    // Hamma o'qiydi. Yozishda: faqat o'z nomidan, 1-5 oralig'ida baho.
+    // Sharhni /api/reviews yaratadi: u sotib olganini tekshiradi va
+    // mahsulotdagi reytingni qayta hisoblaydi. Mijoz to'g'ridan-to'g'ri
+    // yoza olmaydi (F-09, 9- va 10-bandlar).
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── Bildirishnomalar ────────────────────────────────────
+    // Faqat o'zinikini o'qiydi va faqat "read" bayrog'ini o'zgartira oladi.
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == int(request.auth.uid);
+      allow create, delete: if false;
+      allow update: if signedIn()
+                    && resource.data.userId == int(request.auth.uid)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    // ── Linko katalogining nusxasi ──────────────────────────
+    // Tashqi tizimdagi pozitsiyalar: nomi, narxi, qoldig'i. Mijozga
+    // kerak emas — u do'kondagi mahsulotni ko'radi, shuning uchun
+    // o'qish faqat adminga. Yozish — server (Admin SDK).
+    match /linko_products/{linkoId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Promokodlar: mijoz ko'ra olmaydi ────────────────────
+    // Tekshirish /api/promo va /api/orders orqali. Admin panel esa
+    // ro'yxatni ko'rsatishi kerak, shuning uchun unga o'qish ochiq.
+    match /promocodes/{promoId} {
+      allow read: if isAdmin();
+      allow write: if false;   // faqat /api/admin/action
+    }
+
+    // ── Sozlamalar: o'qish mumkin (karta raqami), yozish yo'q ──
+    match /settings/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ── Hisoblagichlar: faqat server ────────────────────────
+    match /counters/{docId} {
+      allow read, write: if false;
+    }
+
+    // Yuqorida sanalmagan hamma narsa yopiq
+    // ── Xodimlar ro'yxati ───────────────────────────────────
+    // O'qish: har xodim o'zinikini ko'radi, ega hammasini.
+    // Yozish: faqat Admin SDK (/api/admin/*) — aks holda xodim
+    // o'ziga owner rolini yozib olardi.
+    match /staff/{uid} {
+      allow read: if isSiteOwner() || (isStaff() && request.auth.uid == uid);
+      allow write: if false;
+    }
+
+    // ── Qo'llab-quvvatlash chati (kuryer ↔ admin) ──────────
+    // Kuryer mini app'ga Telegram ID si bilan kiradi (uid = Telegram id),
+    // shuning uchun faqat `courierTg` si o'ziniki bo'lgan murojaatni
+    // o'qiydi. Admin hammasini ko'radi. Yozish — faqat server
+    // (/api/courier va /api/admin/action).
+    match /support_threads/{threadId} {
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.courierTg == int(request.auth.uid));
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAdmin()
+                    || (signedIn() && get(/databases/$(database)/documents/support_threads/$(threadId)).data.courierTg == int(request.auth.uid));
+        allow write: if false;
+      }
+    }
+
+    // ── Kuryer ilovasi uchun «buyurtmalar o'zgardi» belgisi ──
+    // Ichida faqat vaqt bor — maxfiy ma'lumot yo'q. Kuryer unga obuna
+    // bo'lib, ro'yxatni server orqali qayta so'raydi.
+    match /signals/{signalId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ── Kuryerlar kassasi (naqd pulni topshirish) ───────────
+    // Kuryer o'z topshirishlarini server orqali ko'radi (/api/courier),
+    // admin panel esa jonli o'qiydi. Yozish — faqat server.
+    match /cash_handovers/{handoverId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Kuryerlarning jonli joylashuvi — admin xaritasi ─────
+    match /courier_locations/{staffUid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── «Kuryer qayerda» — mijoz faqat O'Z buyurtmasini ko'radi ──
+    // Server faqat «Yetkazilmoqda» holatida yozadi va buyurtma
+    // yopilishi bilan o'chiradi.
+    match /order_tracking/{orderId} {
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.userId == int(request.auth.uid));
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

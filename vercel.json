@@ -1,0 +1,32 @@
+{
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/admin.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/linko-cron",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/linko-cron?shifts=1",
+      "schedule": "0 19 * * *"
+    }
+  ],
+  "functions": {
+    "api/admin/action.ts": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/{harfbuzzjs/hb.wasm,@resvg/resvg-js-linux-x64-gnu/**}"
+    },
+    "api/linko-cron.ts": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/{harfbuzzjs/hb.wasm,@resvg/resvg-js-linux-x64-gnu/**}"
+    }
+  }
+}

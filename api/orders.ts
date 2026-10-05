@@ -1,0 +1,550 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import {
+  AWAITING_PAYMENT, LOW_STOCK_AT, bumpOrdersSignal, notifyLowStock, notifyNewOrder,
+} from './_lib/actions/orders.js'
+import { onlineSettings, readCard, readProvider, startCardPayment, startPayment } from './_lib/actions/payments.js'
+import { WlcmError } from './_lib/wlcm.js'
+import { restoreStock } from './_lib/stock.js'
+import type { WlcmProvider } from './_lib/wlcm.js'
+import { pushOrderSafe } from './_lib/actions/linko-orders.js'
+import { readReceipt, uploadReceipt } from './_lib/receipts.js'
+import { adminAuth, adminDb } from './_lib/firebase-admin.js'
+import { fail, requirePost } from './_lib/http.js'
+import { isSource } from './_lib/campaigns.js'
+import { bestPromotion, promoPrice, readPromotion } from './_lib/promotions.js'
+import { formatDailyNumber, tashkentDay } from './_lib/order-number.js'
+
+type IncomingItem = {
+  productId: number | string
+  quantity: number
+  size?: string
+  color?: string
+}
+
+type IncomingOrder = {
+  items: IncomingItem[]
+  customer: {
+    name: string
+    phone: string
+    address: string
+    location: { lat: number; lng: number } | null
+    comment: string
+    paymentMethod: 'Naqd' | 'Karta' | 'Onlayn'
+    /** Onlayn to'lovda — Click / Payme / Uzum / Paylov. */
+    paymentProvider?: WlcmProvider | null
+    /** Buyurtmani boshqa odam oladigan bo'lsa. */
+    recipientName?: string
+    recipientPhone?: string
+  }
+  promoCode?: string
+  /** Takroriy buyurtmani to'sish uchun mijoz yaratadigan noyob kalit. */
+  clientOrderId?: string
+  /** Mijoz qaysi kanal e'loni / ommaviy xabardan kelgan (campaigns.ts). */
+  source?: string
+}
+
+/** Mijoz yuborgan ma'lumotni tozalaymiz — narx, jami va status bu yerdan kelmaydi. */
+function readOrder(body: unknown): IncomingOrder {
+  const b = body as Partial<IncomingOrder> | undefined
+  const items = Array.isArray(b?.items) ? b.items : []
+  if (items.length === 0) throw new Error("Savat bo'sh")
+  if (items.length > 50) throw new Error("Savatda juda ko'p mahsulot")
+
+  const customer = b?.customer
+  if (!customer) throw new Error("Mijoz ma'lumoti yo'q")
+
+  const name = String(customer.name || '').trim()
+  const phone = String(customer.phone || '').trim()
+  const address = String(customer.address || '').trim()
+  if (!name || !phone || !address) throw new Error("Ism, telefon va manzil to'ldirilishi shart")
+
+  const paymentMethod = customer.paymentMethod === 'Karta' || customer.paymentMethod === 'Onlayn'
+    ? customer.paymentMethod
+    : 'Naqd'
+  const paymentProvider = paymentMethod === 'Onlayn' ? readProvider(customer.paymentProvider) : null
+  if (paymentMethod === 'Onlayn' && !paymentProvider) throw new Error("To'lov usulini tanlang")
+
+  return {
+    items: items.map((item) => {
+      const quantity = Math.floor(Number(item.quantity))
+      if (!Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
+        throw new Error("Mahsulot miqdori noto'g'ri")
+      }
+      return {
+        productId: item.productId,
+        quantity,
+        size: item.size ? String(item.size).slice(0, 40) : undefined,
+        color: item.color ? String(item.color).slice(0, 40) : undefined,
+      }
+    }),
+    customer: {
+      name: name.slice(0, 120),
+      phone: phone.slice(0, 40),
+      address: address.slice(0, 300),
+      location:
+        customer.location && typeof customer.location.lat === 'number'
+          ? { lat: customer.location.lat, lng: customer.location.lng }
+          : null,
+      comment: String(customer.comment || '').slice(0, 500),
+      paymentMethod,
+      paymentProvider,
+      recipientName: String(customer.recipientName || '').trim().slice(0, 120),
+      recipientPhone: String(customer.recipientPhone || '').trim().slice(0, 40),
+    },
+    promoCode: b?.promoCode ? String(b.promoCode).trim().toUpperCase().slice(0, 40) : undefined,
+    clientOrderId: b?.clientOrderId ? String(b.clientOrderId).slice(0, 64) : undefined,
+    source: isSource(b?.source) ? b.source : undefined,
+  }
+}
+
+/**
+ * POST /api/orders
+ * Authorization: Bearer <Firebase ID token>
+ *
+ * Buyurtmani SERVER yaratadi. Mijoz faqat qaysi mahsulotdan nechta
+ * olishini aytadi — narx, chegirma va jami Firestore'dagi haqiqiy
+ * qiymatlardan qayta hisoblanadi (F-04, F-18).
+ */
+/** O'ramdagi dona soni (setda — 1). Mini app: src/lib/firebase.ts → packOf. */
+function packOf(data: FirebaseFirestore.DocumentData): number {
+  if (Array.isArray(data.bundle) && data.bundle.length) return 1
+  const n = Math.floor(Number(data.pack))
+  return Number.isFinite(n) && n > 1 ? Math.min(n, 1000) : 1
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requirePost(req, res)) return
+
+  // ── Kim so'rayapti ─────────────────────────────────────────
+  const authHeader = String(req.headers.authorization || '')
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  if (!idToken) return fail(res, 401, 'Avtorizatsiya talab qilinadi')
+
+  let uid: string
+  try {
+    const decoded = await (await adminAuth()).verifyIdToken(idToken)
+    uid = decoded.uid
+  } catch {
+    return fail(res, 401, 'Sessiya eskirgan, ilovani qayta oching')
+  }
+
+  let order: IncomingOrder
+  try {
+    order = readOrder(req.body)
+  } catch (error) {
+    return fail(res, 400, error instanceof Error ? error.message : "Ma'lumot noto'g'ri")
+  }
+
+  const db = await adminDb()
+  const userId = Number(uid)
+
+  /*
+   * Onlayn to'lov: admin yoqqan va kalitlar sozlangan bo'lishi shart.
+   * Buyurtma «To'lov kutilmoqda» bo'lib yaratiladi — xodimlarga to'lov
+   * o'tgandan keyingina ko'rinadi (api/_lib/actions/payments.ts).
+   */
+  const online = order.customer.paymentMethod === 'Onlayn'
+  /*
+   * Karta bilan to'lov (Uzcard/Humo): raqam va muddat faqat shu so'rov
+   * davomida xotirada — buyurtmaga ham, logga ham yozilmaydi.
+   */
+  const card = online && order.customer.paymentProvider === 'card' ? readCard(req.body?.card) : null
+  if (online && order.customer.paymentProvider === 'card' && !card) {
+    return fail(res, 400, 'Karta raqami yoki muddati noto‘g‘ri', 'CARD_INVALID')
+  }
+  /*
+   * Karta (o'tkazma): to'lov cheki buyurtma bilan BIRGA keladi — mijoz
+   * «Buyurtma berish» ni bosganda chekni yuklaydi, shundan keyingina
+   * buyurtma yaratiladi va adminga chek rasmi bilan boradi.
+   */
+  let receiptUrl: string | null = null
+  if (order.customer.paymentMethod === 'Karta') {
+    // Admin karta orqali to'lovni o'chirgan (yoki karta kiritilmagan) bo'lsa
+    const pay = (await (await adminDb()).collection('settings').doc('payment').get()).data() ?? {}
+    if (pay.transfer === false || !String(pay.cardNumber || '').trim()) {
+      return fail(res, 400, 'Karta orqali to‘lov hozircha mavjud emas', 'TRANSFER_DISABLED')
+    }
+    const receipt = readReceipt(req.body?.receipt)
+    if (!receipt) return fail(res, 400, 'To‘lov chekini yuklang', 'RECEIPT_REQUIRED')
+    try {
+      receiptUrl = await uploadReceipt(userId, receipt)
+    } catch (error) {
+      console.error('[orders] chek saqlanmadi:', error)
+      return fail(res, 502, 'Chekni saqlab bo‘lmadi, qayta urinib ko‘ring', 'RECEIPT_UPLOAD')
+    }
+  }
+  if (online) {
+    const settings = await onlineSettings(userId)
+    if (!settings.enabled || !order.customer.paymentProvider || !settings.providers.includes(order.customer.paymentProvider)) {
+      return fail(res, 400, 'Onlayn to‘lov hozircha mavjud emas', 'ONLINE_DISABLED')
+    }
+  }
+
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      // ── 1. O'qishlar (transaction'da hamma o'qish yozishdan oldin) ──
+      const productRefs = order.items.map((item) =>
+        db.collection('products').doc(String(item.productId)),
+      )
+      const productSnaps = await tx.getAll(...productRefs)
+
+      const createdAt = new Date()
+      const orderDay = tashkentDay(createdAt)
+      const counterRef = db.collection('counters').doc(`orders-${orderDay}`)
+      const counterSnap = await tx.get(counterRef)
+
+      const userRef = db.collection('users').doc(uid)
+      const userSnap = await tx.get(userRef)
+
+      // Manzil — mijozning SAQLANGAN manzillaridan biri bo'lishi shart (ilovada tanlanadi).
+      // Formada eski matn qolib, manzil tanlanmasdan buyurtma ketib qolmasin.
+      const savedAddresses = userSnap.data()?.addresses
+      const addressSaved = Array.isArray(savedAddresses) &&
+        savedAddresses.some((a: { address?: unknown } | null) => String(a?.address ?? '').trim().slice(0, 300) === order.customer.address)
+      if (!addressSaved) throw new Error('ADDRESS_REQUIRED')
+
+      const deliveryRef = db.collection('settings').doc('delivery')
+      const deliverySnap = await tx.get(deliveryRef)
+
+      // Vaqtli aksiyalar — narx faqat shu yerda, Firestore'dagi holatdan
+      const promoSnap = await tx.get(db.collection('promotions').where('active', '==', true))
+      const promotions = promoSnap.docs.map((doc) => readPromotion(doc.id, doc.data()))
+      const now = Date.now()
+
+      // Takroriylikni to'sish: xuddi shu kalit bilan buyurtma allaqachon
+      // yaratilgan bo'lsa, yangisini yaratmay o'shani qaytaramiz. Sekin
+      // internetda javob yo'qolib, mijoz qayta bosganda ham bitta buyurtma
+      // qoladi.
+      if (order.clientOrderId) {
+        const existing = await tx.get(
+          db.collection('orders').where('clientOrderId', '==', order.clientOrderId).limit(1),
+        )
+        if (!existing.empty) {
+          const doc = existing.docs[0]
+          const data = doc.data()
+          return {
+            id: doc.id,
+            orderNumber: String(data.orderNumber || ''),
+            total: Number(data.total) || 0,
+            discount: Number(data.discount) || 0,
+            deliveryFee: Number(data.deliveryFee) || 0,
+            duplicate: true,
+            // Takroriy so'rov — avval yaratilgan to'lov sahifasi (yoki SMS kod oynasi) qaytadi
+            checkoutUrl: data.status === AWAITING_PAYMENT ? (data.payment?.checkoutUrl ?? null) : null,
+            needsOtp: data.status === AWAITING_PAYMENT && data.payment?.provider === 'card',
+            otpPhone: data.payment?.otpPhone ?? null,
+            cardMask: data.payment?.cardMask ?? null,
+          }
+        }
+      }
+
+      let promoRef: FirebaseFirestore.DocumentReference | null = null
+      let promoData: FirebaseFirestore.DocumentData | null = null
+      if (order.promoCode) {
+        const promoQuery = await tx.get(
+          db.collection('promocodes').where('code', '==', order.promoCode).limit(1),
+        )
+        if (promoQuery.empty) throw new Error('PROMO_NOT_FOUND')
+        promoRef = promoQuery.docs[0].ref
+        promoData = promoQuery.docs[0].data()
+      }
+
+      // ── 2. Narx va ombor qoldig'ini tekshirish ─────────────
+      // Bir mahsulot savatda bir necha variant (o'lcham/rang) bilan
+      // turishi mumkin — qoldiqni umumiy miqdor bo'yicha tekshiramiz.
+      const requestedByProduct = new Map<string, number>()
+      order.items.forEach((item) => {
+        const key = String(item.productId)
+        requestedByProduct.set(key, (requestedByProduct.get(key) || 0) + item.quantity)
+      })
+
+      const stockUpdates: { ref: FirebaseFirestore.DocumentReference; stock: number }[] = []
+      // Qoldig'i tugab qolganlar — tranzaksiyadan keyin adminlarga aytiladi
+      const lowStock: { id: string; name: string; stock: number }[] = []
+      const seenProducts = new Set<string>()
+
+      const products = order.items.map((item, i) => {
+        const snap = productSnaps[i]
+        if (!snap.exists) throw new Error('PRODUCT_GONE')
+        const data = snap.data() as FirebaseFirestore.DocumentData
+        // Admin o'chirgan (yashirgan) mahsulot — savatda qolib ketgan bo'lsa ham sotilmaydi
+        if (data.active === false) throw new Error('PRODUCT_GONE')
+
+        // O'ram: narx va qoldiq bazada DONADA, mijoz o'ramni oladi (src/lib/firebase.ts bilan bir xil)
+        const pack = packOf(data)
+        const basePrice = Number(data.price) * pack
+        if (!Number.isFinite(basePrice) || basePrice <= 0) throw new Error('PRODUCT_PRICE')
+
+        const promo = bestPromotion(
+          promotions,
+          { id: snap.id, category: String(data.category || ''), sectionId: data.sectionId ? String(data.sectionId) : null },
+          now,
+        )
+        const price = promo ? promoPrice(basePrice, promo.percent) : basePrice
+
+        const key = String(item.productId)
+        if (!seenProducts.has(key) && typeof data.stock === 'number') {
+          seenProducts.add(key)
+          const requested = (requestedByProduct.get(key) || 0) * pack
+          if (data.stock < requested) {
+            throw new Error(data.stock <= 0 ? 'OUT_OF_STOCK' : 'NOT_ENOUGH_STOCK')
+          }
+          const left = data.stock - requested
+          stockUpdates.push({ ref: snap.ref, stock: left })
+          if (left <= LOW_STOCK_AT) {
+            lowStock.push({ id: snap.id, name: String(data.name || ''), stock: left })
+          }
+        }
+
+        return {
+          product: {
+            id: Number(data.id ?? snap.id),
+            // O'ramli mahsulot nomida dona soni — chek, xabar, kuryer, nakladnoyda shu ko'rinadi
+            name: pack > 1 ? `${String(data.name || '')} (${pack} dona)` : String(data.name || ''),
+            price,
+            ...(pack > 1 ? { pack } : {}),
+            // Aksiya bo'lsa — asl narx va qaysi aksiya, hisobot va chek uchun
+            ...(promo ? { originalPrice: basePrice, promotion: { id: promo.id, title: promo.title, percent: promo.percent } } : {}),
+            images: Array.isArray(data.images) ? data.images : [],
+            // Buyurtmalar ro'yxatida kichik nusxa ko'rsatiladi
+            thumbs: Array.isArray(data.thumbs) ? data.thumbs : [],
+            variantSources: Array.isArray(data.variantSources) ? data.variantSources : [],
+            category: String(data.category || ''),
+            // Set — tarkibi nomlari bilan (chek, kuryer va admin nimani yig'ishni ko'rsin)
+            ...(Array.isArray(data.bundle) && data.bundle.length
+              ? {
+                  bundle: (data.bundle as { name?: unknown; quantity?: unknown }[]).map((b) => ({
+                    name: String(b?.name || ''),
+                    quantity: Number(b?.quantity) || 1,
+                  })),
+                }
+              : {}),
+          },
+          quantity: item.quantity,
+          size: item.size ?? null,
+          color: item.color ?? null,
+        }
+      })
+
+      const subtotal = products.reduce((sum, p) => sum + p.product.price * p.quantity, 0)
+
+      // ── 3. Promokod ────────────────────────────────────────
+      let discountPercent = 0
+      let appliedPromo: string | null = null
+
+      if (promoData && promoRef) {
+        if (promoData.active === false) throw new Error('PROMO_INACTIVE')
+
+        const expiresAt = promoData.expiresAt ? Date.parse(String(promoData.expiresAt)) : NaN
+        if (!Number.isNaN(expiresAt) && expiresAt < Date.now()) throw new Error('PROMO_EXPIRED')
+
+        const maxUses = Number(promoData.maxUses)
+        const usageCount = Number(promoData.usageCount) || 0
+        if (Number.isFinite(maxUses) && maxUses > 0 && usageCount >= maxUses) {
+          throw new Error('PROMO_USED_UP')
+        }
+
+        const usedBy: unknown[] = Array.isArray(promoData.usedBy) ? promoData.usedBy : []
+        if (usedBy.includes(userId) || usedBy.includes(uid)) throw new Error('PROMO_ALREADY_USED')
+
+        const minOrderTotal = Number(promoData.minOrderTotal) || 0
+        if (subtotal < minOrderTotal) throw new Error('PROMO_MIN_TOTAL')
+
+        discountPercent = Math.min(Math.max(Number(promoData.discountPercent) || 0, 0), 100)
+        appliedPromo = String(promoData.code || order.promoCode)
+      }
+
+      const discount = Math.round((subtotal * discountPercent) / 100)
+      const discountedSubtotal = Math.max(subtotal - discount, 0)
+
+      // ── 4. Yetkazib berish narxi ───────────────────────────
+      const delivery = deliverySnap.exists ? deliverySnap.data() : null
+
+      /*
+       * Minimal buyurtma summasi. Sozlanmagan yoki 0 bo'lsa — cheklov
+       * umuman yo'q, ilova avvalgidek ishlayveradi. Tekshiruv promokod
+       * chegirmasidan OLDINGI summa bo'yicha: chegirma do'kon bergan
+       * imtiyoz, u minimalni buzmasligi kerak.
+       */
+      const minOrder = Math.max(Number(delivery?.minOrder) || 0, 0)
+      if (minOrder > 0 && subtotal < minOrder) {
+        throw new Error(`MIN_ORDER:${minOrder}`)
+      }
+
+      const deliveryFee = Math.max(Number(delivery?.fee) || 0, 0)
+      const freeFrom = Math.max(Number(delivery?.freeFrom) || 0, 0)
+      const appliedDelivery = freeFrom > 0 && discountedSubtotal >= freeFrom ? 0 : deliveryFee
+
+      const total = discountedSubtotal + appliedDelivery
+
+      // ── 5. Yozishlar ───────────────────────────────────────
+      const dailyNumber = (counterSnap.exists ? Number(counterSnap.data()?.value) || 0 : 0) + 1
+      const orderNumber = formatDailyNumber(dailyNumber)
+      tx.set(counterRef, { value: dailyNumber, day: orderDay }, { merge: true })
+
+      if (promoRef) {
+        const usedBy = Array.isArray(promoData?.usedBy) ? promoData.usedBy : []
+        tx.update(promoRef, {
+          usageCount: (Number(promoData?.usageCount) || 0) + 1,
+          usedBy: [...usedBy, userId],
+        })
+      }
+
+      // Ombor qoldig'ini kamaytiramiz — buyurtma bilan bir transactionda
+      stockUpdates.forEach(({ ref, stock }) => tx.update(ref, { stock }))
+
+      const userData = userSnap.data() || {}
+      const orderRef = db.collection('orders').doc()
+
+      tx.set(orderRef, {
+        orderNumber,
+        orderDay,
+        dailyNumber,
+        createdAt: createdAt.toISOString(),
+        products,
+        subtotal,
+        discount,
+        discountPercent,
+        promoCode: appliedPromo,
+        deliveryFee: appliedDelivery,
+        total,
+        status: online ? AWAITING_PAYMENT : 'Yangi',
+        paymentMethod: order.customer.paymentMethod,
+        paymentStatus: order.customer.paymentMethod === 'Naqd' ? null : 'Kutilmoqda',
+        // Karta (o'tkazma) — mijoz yuklagan to'lov cheki
+        receipt: receiptUrl ? { url: receiptUrl, uploadedAt: new Date().toISOString() } : null,
+        paymentProvider: order.customer.paymentProvider ?? null,
+        customer: { ...order.customer, promoCode: appliedPromo },
+        clientOrderId: order.clientOrderId ?? null,
+        source: order.source ?? null,
+        // Botga qayerdan kelgan (reklama havolasi /start meta_ig…) — bot/source_tracking.py
+        startSource: typeof userData.lastSource === 'string' ? userData.lastSource : null,
+        firstSource: typeof userData.firstSource === 'string' ? userData.firstSource : null,
+        userId,
+        username: userData.username ?? null,
+        notified: false,
+      })
+
+      return {
+        id: orderRef.id,
+        orderNumber,
+        total,
+        discount,
+        deliveryFee: appliedDelivery,
+        duplicate: false,
+        lowStock,
+        checkoutUrl: null as string | null,
+        needsOtp: false,
+        otpPhone: null as string | null,
+        cardMask: null as string | null,
+      }
+    })
+
+    // ── Onlayn to'lov: to'lov sahifasi ──────────────────────────
+    if (online && !result.duplicate) {
+      const snap = await db.collection('orders').doc(result.id).get()
+      try {
+        const payment = card
+          ? await startCardPayment(result.id, snap.data() || {}, card)
+          : await startPayment(result.id, snap.data() || {}, order.customer.paymentProvider as WlcmProvider)
+        return res.status(200).json({
+          id: result.id,
+          orderNumber: result.orderNumber,
+          total: result.total,
+          discount: result.discount,
+          deliveryFee: result.deliveryFee,
+          duplicate: false,
+          checkoutUrl: payment.checkoutUrl,
+          // Karta: SMS kod yuborildi — ilova kod oynasini ochadi
+          needsOtp: Boolean(card),
+          otpPhone: payment.otpPhone ?? null,
+          cardMask: payment.cardMask ?? null,
+        })
+      } catch (error) {
+        // To'lov sahifasi ochilmadi — buyurtma bekor, qoldiq qaytadi, savat mijozda qoladi.
+        // Karta xatosida faqat holat kodi yoziladi (karta ma'lumoti logga tushmasin).
+        if (card) console.error('[orders] karta to‘lovi ochilmadi:', error instanceof WlcmError ? error.message : 'xato')
+        else console.error('[orders] to‘lov yaratilmadi:', error)
+        await db.collection('orders').doc(result.id).set({
+          status: 'Bekor qilingan',
+          statusUpdatedAt: new Date().toISOString(),
+          paymentStatus: 'Rad etildi',
+          cancelReason: 'payment_start_failed',
+          // Mijoz qayta bossa yangi buyurtma yaratilsin (eski kalit band bo'lmasin)
+          clientOrderId: null,
+        }, { merge: true })
+        await restoreStock(result.id)
+        // Karta rad etildi (4xx) — mijoz ma'lumotni tekshirsin
+        if (card && error instanceof WlcmError && error.status >= 400 && error.status < 500) {
+          return fail(res, 400, 'Karta qabul qilinmadi — raqam va muddatni tekshiring', 'CARD_REJECTED')
+        }
+        return fail(res, 502, 'To‘lov sahifasini ochib bo‘lmadi, keyinroq urinib ko‘ring', 'PAYMENT_START')
+      }
+    }
+
+    // Xodimlarga xabar — javobni kutmasdan emas, ATAYLAB kutib.
+    // Serverless funksiya javob qaytargach to'xtaydi va "orqa fonda"
+    // boshlangan ish bajarilmay qolishi mumkin.
+    if (!result.duplicate && !online) {
+      const snap = await db.collection('orders').doc(result.id).get()
+      await notifyNewOrder(result.id, snap.data() || {})
+      // Kuryer ilovalari (smenadagilar) ro'yxatni yangilaydi
+      await bumpOrdersSignal()
+      // Ombor signali — buyurtma xabarnomasidan keyin, alohida xabar
+      await notifyLowStock(result.lowStock ?? [])
+      /*
+       * Linko'ga yuborish — sozlamada yoqilgan bo'lsa. Xato tashlamaydi:
+       * tashqi tizim ishlamayotgani mijozning buyurtmasini buzmasligi kerak,
+       * yuborilmagani buyurtmada belgilanadi va paneldan qayta yuboriladi.
+       */
+      await pushOrderSafe(result.id, snap.data() || {})
+    }
+
+    // `lowStock` faqat ichki ish uchun — mijozga qaytarilmaydi
+    return res.status(200).json({
+      id: result.id,
+      orderNumber: result.orderNumber,
+      total: result.total,
+      discount: result.discount,
+      deliveryFee: result.deliveryFee,
+      duplicate: result.duplicate,
+      checkoutUrl: result.checkoutUrl ?? null,
+      needsOtp: result.needsOtp ?? false,
+      otpPhone: result.otpPhone ?? null,
+      cardMask: result.cardMask ?? null,
+    })
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : ''
+
+    // MIN_ORDER:150000 — summa xabarga ham, ilovaga ham kerak
+    if (raw.startsWith('MIN_ORDER:')) {
+      const amount = Number(raw.split(':')[1]) || 0
+      return fail(
+        res,
+        400,
+        `Minimal buyurtma summasi ${amount.toLocaleString('uz-UZ')} so'm`,
+        'MIN_ORDER',
+        { amount },
+      )
+    }
+
+    const code = raw
+    const messages: Record<string, string> = {
+      PRODUCT_GONE: 'Savatdagi mahsulotlardan biri endi mavjud emas',
+      ADDRESS_REQUIRED: 'Yetkazish manzilini tanlang yoki qo‘shing',
+      PRODUCT_PRICE: "Mahsulot narxi noto'g'ri, adminga murojaat qiling",
+      PROMO_NOT_FOUND: 'Bunday promokod topilmadi',
+      PROMO_INACTIVE: 'Promokod faol emas',
+      PROMO_EXPIRED: 'Promokod muddati tugagan',
+      PROMO_USED_UP: 'Promokoddan foydalanish chegarasi tugagan',
+      PROMO_ALREADY_USED: 'Siz bu promokoddan allaqachon foydalangansiz',
+      PROMO_MIN_TOTAL: 'Bu promokod uchun buyurtma summasi yetarli emas',
+      OUT_OF_STOCK: 'Savatdagi mahsulotlardan biri sotuvda qolmadi',
+      NOT_ENOUGH_STOCK: 'Omborda yetarli miqdor yo‘q, savatdagi sonni kamaytiring',
+    }
+    if (messages[code]) return fail(res, 400, messages[code], code)
+
+    console.error('[orders] xato:', error)
+    return fail(res, 500, "Buyurtma yaratilmadi, qayta urinib ko'ring")
+  }
+}

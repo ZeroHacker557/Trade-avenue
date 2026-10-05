@@ -1,0 +1,2420 @@
+/*
+ * Admin panel uslublari.
+ *
+ * Brend tokenlari (--brand, --surface, --ink, qorong'i rejim...) mini app
+ * bilan bir xil — shuning uchun styles.css butunligicha import qilinadi.
+ * Bu yerda faqat admin panelga xos layout va komponentlar.
+ */
+@import "../styles.css";
+
+:root {
+  --admin-sidebar: 248px;
+  --admin-topbar: 62px;
+}
+
+/* ══════════ Layout ══════════ */
+
+.adm-shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.adm-main {
+  min-height: 100dvh;
+  padding-top: var(--admin-topbar);
+  transition: padding-left 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 1024px) {
+  .adm-main { padding-left: var(--admin-sidebar); }
+}
+
+.adm-content {
+  padding: 1.25rem 1rem 3rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  /*
+   * `backwards`, `both` EMAS.
+   *
+   * `both` bilan animatsiya tugagach ham `transform` animatsiya
+   * nazoratida qoladi va element `position: fixed` avlodlar uchun
+   * containing block bo'lib qolaveradi — natijada modal yoki drawer
+   * viewport o'rniga shu blokka yopishadi. Ko'rinishi bir xil,
+   * lekin bu nojo'ya ta'sir yo'q.
+   */
+  animation: admFade 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@media (min-width: 640px) { .adm-content { padding: 1.75rem 1.5rem 4rem; } }
+@media (min-width: 1024px) { .adm-content { padding: 2rem 2rem 4rem; } }
+
+@keyframes admFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes admSlideIn {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+
+/* ══════════ Topbar ══════════ */
+
+.adm-topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: var(--admin-topbar);
+  padding: 0 0.85rem;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  transition: padding-left 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 1024px) {
+  .adm-topbar { padding-left: calc(var(--admin-sidebar) + 1.25rem); padding-right: 1.5rem; }
+}
+
+.adm-topbar__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* ══════════ Sidebar ══════════ */
+
+.adm-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: var(--admin-sidebar);
+  padding: 0.9rem 0.75rem;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Telefon: yon panel chetdan suriladi */
+@media (max-width: 1023px) {
+  .adm-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--shadow-lg);
+  }
+  .adm-sidebar.open { transform: none; }
+}
+
+.adm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+.adm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.75rem;
+}
+
+.adm-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: var(--r-sm);
+  padding: 0.62rem 0.7rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.adm-nav__item:hover { background: var(--surface-2); color: var(--ink); }
+.adm-nav__item:active { transform: scale(0.98); }
+.adm-nav__item.active {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+.adm-nav__item.active svg { color: var(--brand); }
+
+.adm-nav__badge {
+  margin-left: auto;
+  min-width: 20px;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.adm-nav__section {
+  margin: 0.9rem 0 0.3rem;
+  padding: 0 0.7rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ══════════ Kartalar ══════════ */
+
+.adm-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.adm-stat {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 1.1rem;
+  animation: admFade 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.adm-stat__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.adm-stat__value {
+  margin-top: 0.35rem;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.adm-stat__icon {
+  position: absolute;
+  right: 0.9rem;
+  top: 0.9rem;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: var(--r-sm);
+}
+.adm-stat__delta {
+  margin-top: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* ══════════ Jadval ══════════ */
+
+.adm-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--r-md);
+}
+
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+.adm-table th {
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+}
+.adm-table td {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+.adm-table tbody tr { transition: background 0.15s ease; }
+.adm-table tbody tr:hover { background: var(--surface-2); }
+.adm-table tbody tr:last-child td { border-bottom: none; }
+
+/* ══════════ Nishonlar ══════════ */
+
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* ══════════ Tugmalar va maydonlar ══════════ */
+
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--r-sm);
+  padding: 0.62rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+}
+.adm-btn:active { transform: scale(0.97); }
+.adm-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.adm-btn--primary { background: var(--brand); color: var(--brand-ink); }
+.adm-btn--primary:hover:not(:disabled) { background: var(--brand-strong); }
+
+.adm-btn--ghost {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.adm-btn--ghost:hover:not(:disabled) { background: var(--surface-3); }
+
+.adm-btn--danger { background: var(--danger-soft); color: var(--danger); }
+
+.adm-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.68rem 0.85rem;
+  font-size: 0.9rem;
+  background: var(--surface-2);
+  color: var(--ink);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.adm-input:focus {
+  outline: none;
+  border-color: var(--brand-line);
+  background: var(--surface);
+}
+.adm-input::placeholder { color: var(--faint); }
+
+/*
+ * Ikonkali maydon.
+ *
+ * Tailwind'ning `pl-10` klassi bu yerda ishlamaydi: .adm-input dagi
+ * `padding` qisqartmasi stil faylida undan KEYIN turadi va chap
+ * chekinishni qaytadan 0.85rem ga tushiradi. Shuning uchun alohida
+ * modifikator klass.
+ */
+.adm-input.icon-left { padding-left: 2.55rem; }
+.adm-input.icon-right { padding-right: 2.55rem; }
+
+.adm-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ══════════ Kirish sahifasi ══════════ */
+
+.adm-login {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 1.25rem;
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--brand-soft) 0%, transparent 60%),
+    var(--bg);
+}
+
+.adm-login__card {
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 2rem 1.6rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: admFade 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ══════════ Skeleton va bo'sh holat ══════════ */
+
+.adm-skeleton {
+  border-radius: var(--r-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: admShimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes admShimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+.adm-empty {
+  display: grid;
+  place-items: center;
+  gap: 0.6rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+@keyframes admGrow {
+  from { height: 0 !important; opacity: 0; }
+}
+
+@keyframes admSlideRight {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+/* ══════════ Modal ══════════ */
+
+.adm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+@media (min-width: 640px) { .adm-modal { align-items: center; } }
+
+.adm-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+.adm-modal__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  max-height: 92dvh;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: admSheetUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.adm-modal__panel--wide { max-width: 680px; }
+
+@media (min-width: 640px) {
+  .adm-modal__panel {
+    border-radius: var(--r-lg);
+    animation: admFade 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes admSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+.adm-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.adm-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.1rem;
+}
+
+.adm-modal__foot {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.9rem 1.1rem;
+  padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+
+/* ══════════ Toast ══════════ */
+
+.adm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  z-index: 80;
+  transform: translateX(-50%);
+  max-width: min(90vw, 420px);
+  border-radius: var(--r-sm);
+  padding: 0.7rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  animation: admToastIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes admToastIn {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ══════════ Sahifa sarlavhasi va amallar ══════════ */
+
+.adm-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.adm-page-head__actions { margin-left: auto; display: flex; gap: 0.5rem; }
+
+/* Rasm yuklash katakchalari */
+.adm-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.adm-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.adm-thumb__remove {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+}
+
+/* ══════════ Buyurtma paneli (drawer) ══════════
+   DIQQAT: bu tugun document.body ga portal orqali chiziladi.
+   .adm-content da transform'ni o'zgartiruvchi animatsiya bor va u
+   "fill: both" bilan doimiy qoladi — ya'ni o'sha blok fixed elementlar
+   uchun containing block bo'lib qoladi. Portalsiz drawer viewport
+   o'rniga shu blokka yopishib, ekranning yarmi bo'sh qolardi. */
+
+.adm-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.adm-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+.adm-drawer__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: admSlideRight 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.adm-drawer__head {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  padding-top: max(0.9rem, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* ══════════ Chek chop etish ══════════
+   Ekranda ko'rinmaydi; chop etishda esa faqat SHU tugun chiqadi. */
+
+.adm-receipt { display: none; }
+
+@media print {
+  /* Panelning hamma qismini yashiramiz — chekdan boshqasi qog'ozga chiqmasin */
+  body > *:not(.adm-receipt):not(.adm-print) { display: none !important; }
+  /* Nakladnoy / marshrut varaqasi chop etilayotganda — chek emas, hujjat */
+  body[data-print='doc'] > .adm-receipt { display: none !important; }
+  body[data-print='doc'] > .adm-print {
+    display: block !important;
+    background: #ffffff;
+    color: #000000;
+    font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .adm-receipt {
+    display: block;
+    position: static;
+    width: 100%;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+    font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  @page { size: A4; margin: 14mm; }
+}
+
+
+/* Klaviatura tugmasi — «Ctrl+V» kabi ko'rsatmalar uchun */
+.adm-kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 0.35em;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 600 0.7rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+}
+
+/* ====== Ko'rsatma havolasi ====== */
+.adm-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  transition: background 0.2s ease;
+}
+.adm-hint:hover { background: var(--brand-soft-2); }
+
+/* ====== Sudrab tartiblash (SortableList) ====== */
+.adm-sortable { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.adm-sort-row { position: relative; will-change: transform; }
+.adm-sort-row.is-dragging { z-index: 20; }
+.adm-sort-row.is-dragging > * {
+  box-shadow: 0 12px 32px rgb(6 26 16 / 0.18), 0 0 0 2px var(--brand-line);
+  transform: scale(1.015);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.adm-drag-handle {
+  display: grid;
+  width: 32px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--faint);
+  cursor: grab;
+  /* Barmoq bilan sudraganda brauzer sahifani aylantirmasin */
+  touch-action: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.adm-drag-handle:hover { background: var(--surface-2); color: var(--ink); }
+.adm-drag-handle:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.adm-sort-row.is-dragging .adm-drag-handle { cursor: grabbing; color: var(--brand); }
+
+/* ====== Bo'limlar sahifasi ====== */
+.adm-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+}
+.adm-sortable > .adm-sort-row:first-child .adm-sec-head { margin-top: 0; }
+.adm-sec-head--rest {
+  background: var(--surface-2);
+  border: 1px dashed var(--line);
+}
+.adm-sec-head__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--brand);
+}
+.adm-sec-head--rest .adm-sec-head__icon { color: var(--muted); }
+
+.adm-icon-btn {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.adm-icon-btn:hover { background: var(--surface-2); }
+.adm-icon-btn:active { transform: scale(0.9); }
+.adm-icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+.adm-icon-btn--brand { background: var(--brand); color: var(--brand-ink); }
+.adm-icon-btn--brand:hover { background: var(--brand-strong); }
+.adm-icon-btn--danger { color: var(--danger); }
+
+.adm-sec-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: 0.9rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+@media (max-width: 480px) { .adm-sec-item { margin-left: 0.4rem; } }
+
+.adm-sec-item__thumb {
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+.adm-sec-item__thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Biriktirish oynasidagi tanlov qatori */
+.adm-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.adm-pick:hover { border-color: var(--brand-line); }
+.adm-pick.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.adm-pick__box {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  color: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.adm-pick.is-on .adm-pick__box { background: var(--brand); border-color: var(--brand); }
+
+/* ====== Menyu: «Miya» ======
+   Ro'yxat oxirida, chiziq bilan ajratilgan. Galaktika sahifasiga olib
+   boradi — shuning uchun oddiy bandlardan farqli, yulduzli ko'rinishda. */
+.adm-nav__special {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+.adm-nav__item--brain {
+  --brain-sky:
+    radial-gradient(circle at 18% 50%, rgba(242, 201, 76, 0.35), transparent 38%),
+    radial-gradient(1px 1px at 62% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 78% 70%, #cfe8ff, transparent),
+    radial-gradient(1px 1px at 90% 40%, #fff, transparent),
+    linear-gradient(120deg, #06121a 0%, #0b2a24 55%, #04080d 100%);
+  position: relative;
+  overflow: hidden;
+  color: #e6f2ec;
+  background: var(--brain-sky);
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.22);
+}
+.adm-nav__item--brain svg { color: #f2c94c; filter: drop-shadow(0 0 6px rgba(242, 201, 76, 0.7)); }
+/* Oddiy bandlarning hover/active foni `background` shorthand bilan
+   yozilgan — shu yerda ham to'liq qayta beriladi, aks holda osmon o'chardi */
+.adm-nav__item--brain:hover { color: #ffffff; background: var(--brain-sky); box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.5); }
+.adm-nav__item--brain.active {
+  color: #f7e3a1;
+  background: var(--brain-sky);
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.75), 0 0 18px rgba(242, 201, 76, 0.18);
+}
+.adm-nav__item--brain.active svg { color: #f2c94c; }
+
+/* Miya sahifasi — to'liq maydon, ichki bo'shliqsiz */
+.adm-content--bleed {
+  max-width: none;
+  padding: 0 !important;
+}
+
+/* ====== Mahsulot formasi: til yorliqlari ====== */
+.adm-lang-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 0.6rem;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.adm-lang-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.adm-lang-tab.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.adm-lang-tab i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.adm-lang-tab i.is-filled { background: var(--brand); }
+
+/* ====== Excel yuklash oynasi ====== */
+.adm-excel-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.adm-excel-stats > div {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.adm-excel-stats b { display: block; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.adm-excel-stats span { font-size: 0.75rem; color: var(--muted); }
+.adm-excel-tag {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font: 600 0.72rem/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+}
+.adm-excel-issues {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--danger-soft);
+}
+.adm-excel-issues ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.82rem; max-height: 180px; overflow-y: auto; }
+.adm-excel-changes { display: grid; gap: 6px; }
+.adm-excel-changes details { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); }
+.adm-excel-changes summary { display: flex; align-items: center; gap: 6px; padding: 9px 12px; cursor: pointer; font-size: 0.88rem; min-width: 0; }
+.adm-excel-changes table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.adm-excel-changes th, .adm-excel-changes td { padding: 6px 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.adm-excel-changes th { width: 30%; font-weight: 700; color: var(--muted); }
+.adm-excel-changes td.is-old { color: var(--danger); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+.adm-excel-changes td.is-new { color: var(--brand-strong); font-weight: 700; }
+.adm-excel-changes td[aria-hidden] { width: 1%; color: var(--faint); }
+.adm-excel-result { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.adm-excel-result li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2); font-size: 0.85rem; }
+
+/* ====== Ommaviy xabar: kimga ====== */
+/* Ommaviy xabar: rasm/video, tugmalar, Telegram ko'rinishi */
+.adm-bc-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 108px;
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  color: var(--brand);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.adm-bc-add:hover { border-color: var(--brand); background: var(--brand-soft); }
+.adm-bc-add.is-busy { cursor: progress; opacity: 0.75; }
+.adm-bc-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.adm-bc-media img, .adm-bc-media video { display: block; width: 100%; max-height: 280px; object-fit: contain; }
+.adm-bc-media__remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+}
+.adm-bc-note {
+  margin-top: 0.5rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  padding: 0.5rem 0.7rem;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+}
+.adm-bc-btn { border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem; }
+.adm-bc-kind { display: inline-flex; gap: 2px; border-radius: 10px; background: var(--surface-2); padding: 2px; }
+.adm-bc-kind button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.adm-bc-kind button.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-sm, 0 1px 3px rgb(0 0 0 / 0.1)); }
+.adm-bc-sub { margin: 0.6rem 0 0.35rem; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+.adm-bc-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.adm-bc-preview { display: flex; max-width: 340px; flex-direction: column; gap: 4px; }
+.adm-bc-preview__bubble {
+  overflow: hidden;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--brand-soft);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+.adm-bc-preview__bubble img, .adm-bc-preview__bubble video { display: block; width: 100%; max-height: 260px; object-fit: cover; }
+.adm-bc-preview__bubble p { margin: 0; padding: 0.7rem 0.8rem; white-space: pre-wrap; word-break: break-word; }
+.adm-bc-preview__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface));
+  padding: 0.5rem;
+  color: var(--brand);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+/* Telegram tugma ranglari */
+.adm-bc-preview__btn.is-success { background: #2fa84f; color: #fff; }
+.adm-bc-preview__btn.is-primary { background: #2f80ed; color: #fff; }
+.adm-bc-preview__btn.is-danger { background: #e5484d; color: #fff; }
+
+/* ══════════ Telegram kanal ══════════ */
+
+/* Kanal posti ko'rinishi: tepada kanal nomi, pastda ko'rishlar */
+.adm-bc-preview.is-channel .adm-bc-preview__bubble {
+  border-radius: 14px 14px 14px 4px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.adm-bc-preview__from { display: block; padding: 0.55rem 0.8rem 0.35rem; color: var(--brand); font-size: 0.8rem; font-weight: 800; }
+.adm-bc-preview.is-channel .adm-bc-preview__from + p { padding-top: 0; }
+.adm-bc-preview__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 0.7rem 0.45rem;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+.adm-bc-preview.is-channel p { padding-bottom: 0.25rem; }
+.adm-ch-wall {
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--brand) 10%, transparent) 0 2px, transparent 3px) 0 0 / 22px 22px,
+    color-mix(in srgb, var(--brand) 6%, var(--surface-2));
+  padding: 14px;
+}
+
+/* Ulanish holati */
+.adm-ch-status { position: relative; overflow: hidden; }
+.adm-ch-status.is-ok { box-shadow: inset 4px 0 0 #2fa84f; }
+.adm-ch-status.is-bad { box-shadow: inset 4px 0 0 var(--danger); }
+.adm-ch-avatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #2f80ed));
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.adm-ch-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.adm-ch-state__dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.adm-ch-state.is-ok { background: color-mix(in srgb, #2fa84f 14%, transparent); color: #23873e; }
+.adm-ch-state.is-ok .adm-ch-state__dot { animation: admChPulse 1.8s ease-out infinite; }
+.adm-ch-state.is-bad { background: var(--danger-soft, color-mix(in srgb, var(--danger) 14%, transparent)); color: var(--danger); }
+.adm-ch-state.is-off { background: var(--surface-2); color: var(--muted); }
+@keyframes admChPulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, #2fa84f 55%, transparent); }
+  100% { box-shadow: 0 0 0 7px transparent; }
+}
+.adm-ch-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.adm-ch-right.is-ok { border-color: color-mix(in srgb, #2fa84f 35%, transparent); color: #23873e; }
+.adm-ch-right.is-bad { border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); }
+.adm-ch-right.is-off { color: var(--faint); }
+.adm-ch-problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 0.75rem;
+  border-radius: 10px;
+  background: var(--danger-soft, color-mix(in srgb, var(--danger) 12%, transparent));
+  padding: 0.55rem 0.7rem;
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.adm-ch-problem svg { flex-shrink: 0; margin-top: 2px; }
+.adm-ch-steps {
+  margin: 0.7rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  list-style: decimal;
+}
+.adm-ch-steps b { color: var(--ink); }
+
+/* Qayerga yuboriladi */
+.adm-ch-dest { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.adm-ch-dest__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.adm-ch-dest__item:hover:not(:disabled) { border-color: var(--brand-line); }
+.adm-ch-dest__item:disabled { cursor: not-allowed; opacity: 0.55; }
+.adm-ch-dest__item b { display: block; font-size: 0.88rem; }
+.adm-ch-dest__item span span, .adm-ch-dest__item .min-w-0 > span {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-ch-dest__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.adm-ch-dest__check { margin-left: auto; color: var(--brand); }
+.adm-ch-dest__item.active { border-color: var(--brand); background: var(--brand-soft); }
+.adm-ch-dest__item.active .adm-ch-dest__icon { background: var(--brand); color: #fff; }
+
+/* Kanal sozlamalari — almashtirgichlar */
+.adm-ch-opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px;
+  margin-top: 0.7rem;
+}
+.adm-ch-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+}
+.adm-ch-opts .adm-ch-toggle { margin-top: 0; }
+.adm-ch-toggle b { display: block; font-size: 0.82rem; }
+.adm-ch-toggle .min-w-0 > span { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
+.adm-ch-toggle__icon { color: var(--muted); }
+.adm-ch-toggle.is-disabled { cursor: not-allowed; opacity: 0.55; }
+.adm-ch-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: var(--surface-3, var(--line));
+  cursor: inherit;
+  transition: background 0.18s ease;
+}
+.adm-ch-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  content: '';
+  transition: transform 0.18s ease;
+}
+.adm-ch-switch:checked { background: var(--brand); }
+.adm-ch-switch:checked::after { transform: translateX(16px); }
+.adm-ch-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* E'lonlar tarixi */
+.adm-ch-post {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0;
+}
+.adm-ch-post:last-child { border-bottom: none; }
+.adm-ch-post.is-deleted { opacity: 0.5; }
+.adm-ch-post__thumb {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.adm-ch-post__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.adm-ch-post__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.adm-ch-post__meta { margin-top: 2px; color: var(--faint); font-size: 0.7rem; }
+.adm-ch-post__meta svg { display: inline; vertical-align: -1px; }
+
+.adm-audience { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.adm-audience__item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.adm-audience__item b { font-size: 0.86rem; }
+.adm-audience__item span { font-size: 0.74rem; line-height: 1.35; color: var(--muted); }
+.adm-audience__item:hover { border-color: var(--brand-line); }
+.adm-audience__item.active { border-color: var(--brand); background: var(--brand-soft); }
+
+.adm-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.adm-chip.active { border-color: var(--brand-line); background: var(--brand-soft); color: var(--brand-strong); }
+
+.adm-picklist {
+  display: grid;
+  gap: 2px;
+  max-height: 260px;
+  margin-top: 8px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.adm-picklist label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.adm-picklist label:hover { background: var(--surface-2); }
+.adm-picklist input { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--brand); }
+.adm-picklist small { margin-left: auto; flex-shrink: 0; font-size: 0.72rem; color: var(--faint); }
+.adm-link { font-weight: 700; color: var(--brand); }
+.adm-link:hover { text-decoration: underline; }
+
+/* ====== Sozlamalar: yetkazish namunasi ====== */
+.adm-preview {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.adm-preview .free-delivery { margin-bottom: 0; }
+.adm-preview input[type="range"] { width: 100%; accent-color: var(--brand); }
+
+/* ====== Vaqtli aksiyalar ====== */
+.adm-promo { padding: 14px; }
+.adm-promo.is-running { border-color: var(--brand-line); box-shadow: 0 0 0 1px var(--brand-line), var(--shadow-sm); }
+.adm-promo__pct {
+  display: grid;
+  min-width: 56px;
+  height: 40px;
+  padding: 0 10px;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #ff6b3d 0%, #e5304f 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ====== Hisobotlar: soatlar bo'yicha ====== */
+.adm-hours {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+  margin-top: 14px;
+}
+.adm-hours span {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-soft-2) 100%);
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ══════════ Telegram ichida ochilganda ══════════
+ *
+ * Bot adminlarga «🛠 Admin panel» tugmasini beradi va panel Telegram
+ * oynasida ochiladi (src/admin/lib/telegram.ts). To'liq ekran rejimida
+ * Telegram o'z boshqaruv tugmalarini sahifa USTIGA chizadi — tepadagi
+ * panel shuncha pastga suriladi, aks holda sarlavha va menyu tugmasi
+ * ularning ostida qolib ketadi.
+ */
+:root {
+  --adm-inset-top: 0px;
+  --adm-inset-bottom: 0px;
+}
+
+.in-telegram .adm-topbar {
+  height: calc(var(--admin-topbar) + var(--adm-inset-top));
+  padding-top: var(--adm-inset-top);
+}
+.in-telegram .adm-main {
+  padding-top: calc(var(--admin-topbar) + var(--adm-inset-top));
+  padding-bottom: var(--adm-inset-bottom);
+}
+.in-telegram .adm-sidebar {
+  padding-top: calc(0.9rem + var(--adm-inset-top));
+  padding-bottom: calc(0.9rem + var(--adm-inset-bottom));
+}
+
+/* ══════════ Reklama banneri (AdsPage) ══════════
+   Chapda sozlamalar, o'ngda telefon ko'rinishi — kichik ekranda
+   ko'rinish tepaga chiqadi, katta ekranda yonda yopishib turadi. */
+.adm-ads {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+.adm-ads__preview { order: -1; }
+@media (min-width: 1024px) {
+  .adm-ads { grid-template-columns: minmax(0, 1fr) 320px; }
+  .adm-ads__preview {
+    order: 0;
+    position: sticky;
+    top: calc(var(--admin-topbar) + 1rem);
+  }
+}
+
+.adm-phone {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 9 / 19;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 8px solid #111;
+  border-radius: 38px;
+  background: #000;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.22), 0 0 0 1px var(--line);
+  isolation: isolate;
+}
+@media (max-width: 1023px) {
+  /* Telefonda sahifani to'liq egallab qolmasin */
+  .adm-phone { width: min(100%, 240px); }
+}
+.adm-phone__empty {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  color: rgb(255 255 255 / 0.65);
+  text-align: center;
+}
+
+.adm-ad-slide {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.adm-ad-slide.is-selected {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+.adm-ad-slide__media {
+  position: relative;
+  width: 92px;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: #000;
+}
+.adm-ad-slide__media img,
+.adm-ad-slide__media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.adm-ad-slide__no,
+.adm-ad-slide__type {
+  position: absolute;
+  top: 6px;
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.adm-ad-slide__no { left: 6px; }
+.adm-ad-slide__type { right: 6px; }
+
+.adm-ad-add {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 1.25rem 1rem;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.adm-ad-add:hover { border-color: var(--brand-line); background: var(--brand-soft); color: var(--brand-strong); }
+.adm-ad-add.is-busy { cursor: progress; opacity: 0.8; }
+
+/* ====== Qo'llab-quvvatlash chati ======
+   Katta ekranda: chapda murojaatlar, o'ngda chat. Telefonda bittadan:
+   murojaat tanlansa ro'yxat yashirinadi, «←» bilan qaytiladi. */
+.adm-support {
+  display: grid;
+  gap: 1rem;
+  height: calc(100dvh - var(--admin-topbar) - 3rem);
+  min-height: 460px;
+}
+@media (min-width: 1024px) {
+  .adm-support { grid-template-columns: 340px minmax(0, 1fr); }
+}
+@media (max-width: 1023px) {
+  .adm-support.has-chat .adm-support__list { display: none; }
+  .adm-support:not(.has-chat) .adm-support__chat { display: none; }
+}
+.adm-support__list,
+.adm-support__chat {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.adm-support__filters { display: flex; gap: 0.35rem; border-bottom: 1px solid var(--line); padding: 0.75rem; }
+.adm-support__filter {
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.adm-support__filter.active { background: var(--brand-soft); color: var(--brand); }
+.adm-support__threads { flex: 1; overflow-y: auto; padding: 0.4rem; }
+.adm-support__thread {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: var(--r-sm);
+  padding: 0.65rem;
+  transition: background-color 0.15s ease;
+}
+.adm-support__thread:hover { background: var(--surface-2); }
+.adm-support__thread.active { background: var(--brand-soft); }
+.adm-support__avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold-strong);
+  font-weight: 800;
+}
+.adm-support__order {
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--surface-3);
+  padding: 0.05rem 0.4rem;
+  color: var(--ink-2);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.adm-support__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+}
+.adm-support__back {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.adm-support__messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  background: var(--surface-2);
+  padding: 1rem;
+}
+.adm-support__composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding: 0.75rem;
+}
+.adm-support__composer .adm-input { resize: none; }
+.adm-support__composer .adm-btn { height: 44px; }
+
+.adm-msg {
+  max-width: min(80%, 560px);
+  border-radius: 16px;
+  padding: 0.5rem 0.8rem 0.35rem;
+  box-shadow: var(--shadow-sm);
+}
+.adm-msg.is-mine { align-self: flex-end; border-bottom-right-radius: 5px; background: var(--brand); color: var(--brand-ink); }
+.adm-msg.is-courier {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.adm-msg__author { display: block; font-size: 0.7rem; font-weight: 800; opacity: 0.85; }
+.adm-msg__text { margin: 0; font-size: 0.9rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-msg__time { display: flex; justify-content: flex-end; align-items: center; gap: 0.2rem; font-size: 0.66rem; opacity: 0.7; }
+
+/* ====== Kuryerlar kassasi ====== */
+.adm-cash__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 14px;
+}
+.adm-cash__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  padding: 0.6rem 0.75rem;
+}
+
+/* ====== Kuryerlar xaritasi ======
+   Katta ekranda: chapda kuryerlar ro'yxati, o'ngda xarita. Telefonda
+   xarita tepada, ro'yxat pastda. */
+.amap {
+  display: grid;
+  gap: 1rem;
+  height: calc(100dvh - var(--admin-topbar) - 3rem);
+  min-height: 520px;
+}
+@media (min-width: 1024px) {
+  .amap { grid-template-columns: 320px minmax(0, 1fr); }
+}
+@media (max-width: 1023px) {
+  .amap { height: auto; grid-template-rows: 60vh auto; }
+  .amap__map { order: -1; }
+}
+.amap__side { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 0; }
+.amap__summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+.amap__summary span { padding: 0.75rem 0.25rem; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+.amap__summary b { display: block; color: var(--ink); font-size: 1.2rem; font-weight: 800; }
+.amap__list { flex: 1; min-height: 0; overflow-y: auto; padding: 0.5rem; }
+
+/* «Hammasi» — umumiy ko'rinish */
+.amap__all {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.55rem 0.7rem;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.amap__all:hover { background: var(--surface-2); }
+.amap__all.is-on { border-style: solid; border-color: var(--ink); background: var(--surface-2); }
+
+.amap__couriers { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.5rem; }
+.amap__courier {
+  overflow: hidden;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.amap__courier.is-on {
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 7%, var(--surface));
+}
+.amap__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.6rem;
+  transition: background-color 0.15s ease;
+}
+.amap__courier:not(.is-on) .amap__item:hover { background: var(--surface-2); }
+/* Kuryer qatori: tanlash tugmasi + qo'ng'iroq */
+.amap__row { display: flex; align-items: center; padding-right: 0.5rem; }
+.amap__row .amap__item { min-width: 0; flex: 1; }
+.amap__phone {
+  display: block;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.amap__call {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c, var(--brand)) 14%, transparent);
+  color: var(--c, var(--brand));
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.amap__call:hover { background: var(--c, var(--brand)); color: #fff; }
+.amap__call:active { transform: scale(0.9); }
+.amap__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-weight: 800;
+}
+.amap__dot::after {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  content: "";
+}
+.amap__dot.is-fresh::after { background: #22c55e; }
+.amap__dot.is-recent::after { background: #f5b301; }
+.amap__dot.is-lost { filter: grayscale(0.85); opacity: 0.75; }
+.amap__dot.is-lost::after { background: #9aa5a0; }
+.amap__count {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  padding: 0.15rem 0.5rem;
+  color: var(--c);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.amap__chev { flex-shrink: 0; color: var(--faint); transition: transform 0.2s ease; }
+.amap__courier.is-on .amap__chev { transform: rotate(90deg); color: var(--c); }
+
+/* Tanlangan kuryerning to'xtash joylari — yo'nalish tartibida */
+.amap__stops { display: flex; flex-direction: column; padding: 0 0.45rem 0.5rem; }
+.amap__stop-empty { padding: 0.3rem 0.5rem 0.2rem 3.3rem; color: var(--muted); font-size: 0.78rem; }
+.amap__stop {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border-radius: 10px;
+  padding: 0.45rem 0.45rem 0.45rem 0.55rem;
+  transition: background-color 0.15s ease;
+}
+.amap__stop:hover { background: var(--surface-2); }
+.amap__stop i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+}
+.amap__stop i.is-waiting { background: #64748b; }
+/* Raqamlar orasidagi ingichka chiziq — yo'nalish ekanini bildiradi */
+.amap__stops li + li .amap__stop::before {
+  position: absolute;
+  top: -10px;
+  left: calc(0.55rem + 11px);
+  width: 2px;
+  height: 14px;
+  background: color-mix(in srgb, var(--c) 45%, transparent);
+  content: "";
+}
+.amap__stop-state { margin-left: 0.4rem; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+.amap__waiting { margin-top: 0.7rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
+.amap__section {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.amap__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  border-top: 1px solid var(--line);
+  padding: 0.65rem 0.85rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.amap__legend i { display: inline-block; width: 9px; height: 9px; margin-right: 0.3rem; border-radius: 50%; }
+.amap__legend .is-fresh { background: #22c55e; }
+.amap__legend .is-recent { background: #f5b301; }
+.amap__legend .is-lost { background: #9aa5a0; }
+.amap__map { position: relative; min-height: 0; overflow: hidden; padding: 0; }
+.amap__map .leaflet-container { height: 100%; width: 100%; font: inherit; }
+.amap__fit {
+  position: absolute;
+  right: 12px;
+  bottom: 24px;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+}
+/* Tanlangan kuryer — xarita ustida kim ko'rsatilayotgani */
+.amap__banner {
+  position: absolute;
+  top: 10px;
+  /* Chapda — kattalashtirish tugmalaridan keyin; telefonda ham sig'sin */
+  left: 58px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(calc(100% - 70px), 440px);
+  border-left: 4px solid var(--c);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 0.5rem 0.55rem 0.5rem 0.65rem;
+  box-shadow: var(--shadow-md);
+}
+.amap__banner-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.amap__banner-sub {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.amap__banner-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Kuryer belgisi: rangli doira + bosh harf, ostida ism; burchakda yangilik nuqtasi */
+.amap-courier {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -20px);
+  transition: opacity 0.2s ease;
+}
+.amap-courier__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.3);
+}
+.amap-courier__dot span { position: relative; z-index: 1; }
+.amap-courier__dot em {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  z-index: 2;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.amap-courier.is-recent .amap-courier__dot em { background: #f5b301; }
+.amap-courier.is-lost .amap-courier__dot em { background: #9aa5a0; }
+.amap-courier.is-lost .amap-courier__dot { filter: grayscale(0.9); }
+.amap-courier.is-fresh .amap-courier__dot::before {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid var(--c);
+  content: "";
+  animation: amapPulse 1.8s ease-out infinite;
+}
+.amap-courier__name {
+  margin-top: 3px;
+  max-width: 120px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--c);
+  padding: 1px 8px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+}
+.amap-courier.is-dim { opacity: 0.4; }
+.amap-courier.is-dim .amap-courier__dot::before { display: none; }
+.amap-courier.is-selected .amap-courier__dot { width: 46px; height: 46px; font-size: 17px; }
+/* Harakat yo'nalishi */
+.amap-courier__arrow {
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+}
+.amap-courier__arrow::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-right: 6px solid transparent;
+  border-bottom: 9px solid var(--c);
+  border-left: 6px solid transparent;
+  transform: translateX(-50%);
+  content: "";
+}
+@keyframes amapPulse {
+  from { opacity: 0.8; transform: scale(0.85); }
+  to { opacity: 0; transform: scale(1.5); }
+}
+
+/* Buyurtma pini — raqami yozilgan yorliq va pastga uchi; marshrutda tartib raqami */
+.amap-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--c);
+  padding: 2px 8px 2px 8px;
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.28);
+  transform: translate(-50%, calc(-100% - 7px));
+  transition: opacity 0.2s ease;
+}
+.amap-pin::after {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  border-top: 7px solid var(--c);
+  border-right: 6px solid transparent;
+  border-left: 6px solid transparent;
+  transform: translateX(-50%);
+  content: "";
+}
+.amap-pin span { font-size: 11px; font-weight: 800; letter-spacing: 0.01em; }
+.amap-pin.has-step { padding-left: 3px; }
+.amap-pin i {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--c);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+.amap-pin.is-dim { opacity: 0.45; }
+
+/* «Set qo'shish» tugmasi va set oynasidagi ko'rsatma */
+.adm-btn--set {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px rgb(234 88 12 / 0.28);
+}
+.adm-btn--set:hover { filter: brightness(1.05); }
+.adm-set-guide {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, #f59e0b 12%, var(--surface));
+  padding: 0.7rem 0.85rem;
+  list-style: none;
+  font-size: 0.8rem;
+}
+.adm-set-guide li { display: flex; align-items: baseline; gap: 0.5rem; color: var(--ink-2); }
+.adm-set-guide li > b:first-child {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+/* Mahsulot formasi: set tarkibi */
+.adm-set-badge {
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  padding: 0.05rem 0.4rem;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+}
+.adm-bundle {
+  border: 1.5px dashed color-mix(in srgb, #f59e0b 50%, var(--line));
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+.adm-bundle__list { display: grid; gap: 0.35rem; margin: 0.3rem 0 0; padding: 0; list-style: none; }
+.adm-bundle__list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 0.35rem 0.45rem;
+}
+.adm-bundle__list img, .adm-bundle__options img, .adm-bundle__noimg {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+.adm-bundle__qty { display: inline-flex; align-items: center; gap: 0.35rem; }
+.adm-bundle__qty button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.adm-bundle__qty b { min-width: 1.4rem; text-align: center; font-size: 0.9rem; }
+.adm-bundle__options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  list-style: none;
+  box-shadow: var(--shadow-md);
+}
+.adm-bundle__options button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.85rem;
+}
+.adm-bundle__options button:hover { background: var(--surface-2); }
+.adm-bundle__sum { margin-top: 0.6rem; color: var(--muted); font-size: 0.8rem; }
+.adm-bundle__sum b { color: var(--ink); }
+
+/* Linko: avtomatik yuborish holati */
+.adm-linko-auto {
+  border: 1px solid var(--brand-line, var(--line));
+  border-radius: 12px;
+  background: var(--brand-soft);
+  padding: 0.75rem 0.9rem;
+}
+
+/* Buyurtmalar: ro'yxat / doska almashtirgich */
+.adm-view-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 0.2rem;
+}
+.adm-view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9px;
+  padding: 0.35rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.adm-view-toggle button.is-on { background: var(--brand-soft); color: var(--brand-strong); }
+
+/* Kanban doska (22-band) */
+.adm-board {
+  display: grid;
+  grid-auto-columns: minmax(250px, 1fr);
+  grid-auto-flow: column;
+  gap: 0.75rem;
+  overflow-x: auto;
+  margin-top: 1rem;
+  padding-bottom: 0.75rem;
+  scroll-snap-type: x proximity;
+}
+.adm-board.is-dragging { scroll-snap-type: none; user-select: none; cursor: grabbing; }
+.adm-board__col {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  border: 1.5px dashed transparent;
+  border-radius: 16px;
+  background: var(--surface-2);
+  padding: 0.6rem;
+  scroll-snap-align: start;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.adm-board__col.is-over { border-color: var(--c); background: color-mix(in srgb, var(--c) 9%, var(--surface-2)); }
+.adm-board__head { display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.3rem 0.6rem; font-size: 0.85rem; }
+.adm-board__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.adm-board__count { border-radius: 999px; background: var(--surface); padding: 0 0.45rem; color: var(--muted); font-size: 0.72rem; font-weight: 800; }
+.adm-board__sum { margin-left: auto; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+.adm-board__list { display: flex; flex: 1; flex-direction: column; gap: 0.5rem; }
+.adm-board__empty { padding: 1.2rem 0; color: var(--faint); font-size: 0.78rem; text-align: center; }
+.adm-board__card {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c, var(--line));
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 0.6rem 0.65rem;
+  cursor: grab;
+  box-shadow: var(--shadow-sm);
+  animation: admFade 0.25s ease both;
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.adm-board__card:hover { box-shadow: var(--shadow-md); }
+.adm-board__card.is-ghosted { opacity: 0.35; transform: scale(0.97); }
+.adm-board__card.is-busy { opacity: 0.6; }
+.adm-board__grip { flex-shrink: 0; color: var(--faint); }
+.adm-board__courier {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.2rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+  padding: 0.05rem 0.4rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adm-board__next {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  margin-left: auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c);
+  transition: transform 0.15s ease;
+}
+.adm-board__next:hover { transform: translateX(2px); }
+.adm-board__ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  display: none;
+  pointer-events: none;
+}
+.adm-board__ghost.is-on { display: block; }
+.adm-board__ghost .adm-board__card { cursor: grabbing; box-shadow: 0 16px 40px rgb(0 0 0 / 0.25); animation: none; }
+
+/* Bosh sahifa kartalari: trend chizig'i va kechagidan farq (23-band) */
+.adm-stat { position: relative; }
+/* Egri chiziq — pastki qismda, butun kenglik; matn uning ustida */
+.adm-stat.has-spark { padding-bottom: 2.6rem; }
+.adm-stat > :not(.adm-spark) { position: relative; z-index: 1; }
+.adm-stat > .adm-stat__icon { position: absolute; }
+.adm-spark {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 38px;
+  pointer-events: none;
+}
+/* Chapdan o'ngga ochiladi (chiziq cho'zilgani uchun dash-animatsiya uzuq chiqardi) */
+.adm-spark { animation: admSparkReveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+@keyframes admSparkReveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.adm-stat__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.adm-stat__delta span { font-weight: 600; opacity: 0.75; }
+.adm-stat__delta.is-up { background: var(--success-soft, var(--brand-soft)); color: var(--success, var(--brand)); }
+.adm-stat__delta.is-down { background: var(--danger-soft); color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .adm-spark { animation: none; } }
+
+/* Buyurtma tarixi — vaqt chizig'i (24-band) */
+.adm-timeline { position: relative; display: grid; gap: 0.65rem; margin: 0; padding: 0 0 0 0.1rem; list-style: none; }
+.adm-timeline::before {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line);
+  content: "";
+}
+.adm-timeline__item { position: relative; display: flex; gap: 0.7rem; animation: admFade 0.3s ease both; }
+.adm-timeline__dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 16%, var(--surface));
+  color: var(--c);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.adm-timeline__item:last-child .adm-timeline__dot { background: var(--c); color: #fff; }
+
+/* «Linko'ga yuborilganlar» */
+.lko-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.lko-stat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 0.6rem 0.75rem;
+  color: var(--c);
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.lko-stat b { color: var(--ink); font-size: 1.25rem; font-weight: 800; line-height: 1; }
+.lko-stat span { grid-column: 1 / -1; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+.lko-stat.is-on { border-color: var(--c); background: color-mix(in srgb, var(--c) 8%, var(--surface)); }
+.lko-row { overflow: hidden; border-left: 3px solid var(--c); padding: 0; }
+.lko-row__main { display: flex; width: 100%; align-items: flex-start; gap: 0.7rem; padding: 0.8rem 0.9rem; }
+.lko-row__state {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c);
+}
+.lko-row__chev { flex-shrink: 0; margin-top: 0.4rem; color: var(--faint); transition: transform 0.2s ease; }
+.lko-row.is-open .lko-row__chev { transform: rotate(180deg); }
+.lko-row__body { border-top: 1px solid var(--line); padding: 0.8rem 0.9rem 0.9rem; animation: admFade 0.2s ease both; }
+.lko-pill {
+  border-radius: 999px;
+  background: var(--ink);
+  padding: 0.08rem 0.5rem;
+  color: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lko-pill--soft { background: var(--surface-2); color: var(--ink-2); }
+.lko-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; margin: 0; }
+.lko-facts div { border-radius: 10px; background: var(--surface-2); padding: 0.45rem 0.6rem; }
+.lko-facts dt { color: var(--muted); font-size: 0.68rem; font-weight: 700; }
+.lko-facts dd { margin: 0.1rem 0 0; font-size: 0.85rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lko-items { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
+.lko-items li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+}
+.lko-items li:nth-child(odd) { background: var(--surface-2); }
+.lko-items li.is-missed { outline: 1.5px solid var(--warning); }
+.lko-miss { flex-basis: 100%; color: var(--warning); font-size: 0.72rem; font-weight: 700; }
+
+/* ══════════ Muharrir yordamchilari: shablonlar, mahsulot, vaqt, natija ══════════ */
+
+.adm-tools { position: relative; }
+.adm-tools__list {
+  margin-top: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 4px;
+}
+.adm-tools__item { display: flex; align-items: center; gap: 8px; border-radius: 9px; padding: 0.45rem 0.55rem; }
+.adm-tools__item:hover { background: var(--surface-2); }
+
+.adm-pick-products { display: flex; max-height: 52vh; flex-direction: column; gap: 4px; margin-top: 0.75rem; overflow-y: auto; }
+.adm-pick-products__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.adm-pick-products__item:hover { border-color: var(--brand-line); background: var(--brand-soft); }
+.adm-pick-products__img {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.adm-pick-products__img img { width: 100%; height: 100%; object-fit: cover; }
+
+.adm-stats-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  color: var(--ink-2, var(--muted));
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.adm-stats-line span { display: inline-flex; align-items: center; gap: 3px; }
+
+.adm-edit-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 0.9rem;
+  border: 1px solid color-mix(in srgb, #2f80ed 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, #2f80ed 9%, var(--surface));
+  padding: 0.6rem 0.7rem;
+  font-size: 0.82rem;
+}
+.adm-edit-banner > svg { flex-shrink: 0; margin-top: 2px; color: #2f80ed; }
+.adm-bc-media.is-locked { opacity: 0.85; }
+
+/* So'rovnoma natijasi */
+.adm-poll { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.adm-poll__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 3px 8px;
+  font-size: 0.74rem;
+}
+.adm-poll__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
+  transition: width 0.4s ease;
+}
+.adm-poll__row.is-correct .adm-poll__bar { background: color-mix(in srgb, #2fa84f 30%, transparent); }
+.adm-poll__text { position: relative; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-poll__pct { position: relative; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Aksiya: boshlanganda e'lon */
+.adm-announce { margin-top: 1rem; border: 1px dashed var(--line); border-radius: 12px; padding: 0.7rem 0.8rem; }
+.adm-announce__img { position: relative; display: block; width: 84px; height: 56px; overflow: hidden; border-radius: 8px; }
+.adm-announce__img img { width: 100%; height: 100%; object-fit: cover; }
+.adm-announce__img button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+}
+
+/* Chop etiladigan hujjat (nakladnoy) — ekranda ko'rinmaydi */
+.adm-print { display: none; }
+
+/* ══════════ Harakatlar jurnali ══════════ */
+
+.adm-audit { display: flex; flex-direction: column; }
+.adm-audit__row { border-bottom: 1px solid var(--line); }
+.adm-audit__row:last-child { border-bottom: none; }
+.adm-audit__row.is-error { background: color-mix(in srgb, var(--danger) 5%, transparent); }
+.adm-audit__head { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 0.6rem 0.5rem; text-align: left; }
+.adm-audit__head:hover { background: var(--surface-2); }
+.adm-audit__src {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.adm-audit__line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; font-size: 0.84rem; }
+.adm-audit__role { border-radius: 999px; background: var(--surface-2); padding: 0 7px; color: var(--muted); font-size: 0.68rem; font-weight: 800; }
+.adm-audit__target { color: var(--brand-strong, var(--brand)); font-weight: 700; }
+.adm-audit__changes { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; color: var(--muted); font-size: 0.74rem; }
+.adm-audit__changes s { color: var(--faint); }
+.adm-audit__error { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--danger); font-size: 0.74rem; font-weight: 600; }
+.adm-audit__time { flex-shrink: 0; color: var(--faint); font-size: 0.72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adm-audit__body { padding: 0 0.6rem 0.8rem 3.1rem; }
+.adm-audit__body table { margin-bottom: 0.5rem; border-collapse: collapse; font-size: 0.78rem; }
+.adm-audit__body th { padding: 2px 10px 2px 0; color: var(--muted); font-weight: 700; text-align: left; }
+.adm-audit__body td { padding: 2px 10px 2px 0; }
+.adm-audit__body pre {
+  margin-top: 0.4rem;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 0.6rem;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+@media (max-width: 640px) {
+  .adm-audit__head { flex-wrap: wrap; }
+  .adm-audit__time { order: 3; width: 100%; padding-left: 40px; }
+  .adm-audit__body { padding-left: 0.6rem; }
+}
+
+/* Bosh sahifa banneri — telefon kengligida oldindan ko'rish */
+.adm-banner-preview { max-width: 380px; margin: 0 auto; }

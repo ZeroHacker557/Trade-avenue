@@ -1,0 +1,326 @@
+/*
+ * «Miya» sahifasi — chuqur koinot.
+ *
+ * Panelning yorug'/qorong'i rejimidan qat'i nazar doim qorong'i:
+ * galaktika yorug' fonda bo'lmaydi. Shuning uchun ranglar tokenlardan
+ * emas, shu yerda aniq beriladi va hammasi `.brain` ichida yopiq.
+ */
+.brain {
+  --brain-glass: rgba(9, 18, 24, 0.72);
+  --brain-hair: rgba(214, 240, 228, 0.1);
+  --brain-hair-strong: rgba(214, 240, 228, 0.22);
+  --brain-ink: #e6f2ec;
+  --brain-muted: #86a096;
+  --brain-faint: #5b7168;
+  --brain-gold: #f2c94c;
+  --brain-ice: #8fd3ff;
+  --brain-rose: #ff6b7d;
+  --brain-display: 'Archivo Black', 'Arial Black', Impact, sans-serif;
+  --brain-body: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  --brain-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  position: relative;
+  height: calc(100dvh - var(--admin-topbar));
+  overflow: hidden;
+  background: #02050b;
+  color: var(--brain-ink);
+  font: 500 14px/1.45 var(--brain-body);
+  color-scheme: dark;
+  isolation: isolate;
+}
+.brain * { box-sizing: border-box; }
+.brain button { font: inherit; color: inherit; }
+.brain :focus-visible { outline: 2px solid var(--brain-gold); outline-offset: 2px; }
+
+.brain__sky {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.brain__sky.is-dragging { cursor: grabbing; }
+.brain__sky.is-pointing { cursor: pointer; }
+
+.brain__hud { position: absolute; z-index: 2; pointer-events: none; }
+.brain__hud > * { pointer-events: auto; }
+
+/* ── Yuqori chap: nom va hisoblagichlar ── */
+.brain__brand { top: 16px; left: 18px; display: grid; gap: 10px; max-width: min(620px, calc(100% - 36px)); }
+.brain__mark { display: flex; align-items: center; gap: 10px; pointer-events: none; }
+.brain__core {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--brain-gold);
+  box-shadow: 0 0 10px 2px rgba(242, 201, 76, 0.75), 0 0 32px 6px rgba(242, 201, 76, 0.25);
+}
+.brain__name { font: 400 22px/1 var(--brain-display); letter-spacing: 0.02em; }
+.brain__sub { font: 600 11px/1 var(--brain-mono); letter-spacing: 0.32em; text-transform: uppercase; color: var(--brain-gold); }
+.brain__live {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 4px; padding: 3px 8px;
+  border: 1px solid rgba(46, 229, 140, 0.3); border-radius: 999px;
+  font: 600 10px/1 var(--brain-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  color: #2ee58c;
+}
+.brain__live i { width: 6px; height: 6px; border-radius: 50%; background: #2ee58c; box-shadow: 0 0 8px #2ee58c; animation: brainBlink 1.8s ease-in-out infinite; }
+
+.brain__counts { display: flex; flex-wrap: wrap; gap: 4px 2px; }
+.brain__count {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid transparent; border-radius: 999px;
+  background: none; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.brain__count:hover { border-color: var(--brain-hair-strong); background: rgba(255, 255, 255, 0.03); }
+.brain__count b { font: 600 15px/1 var(--brain-mono); font-variant-numeric: tabular-nums; }
+.brain__count span { font-size: 12px; color: var(--brain-muted); }
+.brain__count i { width: 6px; height: 6px; border-radius: 50%; align-self: center; }
+
+/* ── Qidiruv ── */
+.brain__search { top: 16px; right: 18px; width: min(300px, calc(100% - 36px)); }
+.brain__search input {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border: 1px solid var(--brain-hair); border-radius: 12px;
+  background: var(--brain-glass) no-repeat 12px 50% / 15px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386a096' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  color: var(--brain-ink);
+  font: 500 13px/1.2 var(--brain-body);
+}
+.brain__search input::placeholder { color: var(--brain-faint); }
+.brain__search input:focus { outline: none; border-color: rgba(242, 201, 76, 0.5); }
+.brain__results {
+  margin-top: 6px;
+  border: 1px solid var(--brain-hair); border-radius: 12px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+.brain__results button {
+  display: flex; width: 100%; align-items: center; gap: 10px;
+  padding: 9px 12px; border: 0; background: none; text-align: left; cursor: pointer;
+}
+.brain__results button:hover, .brain__results button.is-active { background: rgba(255, 255, 255, 0.05); }
+.brain__results i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.brain__results span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.brain__results small { font: 400 10px/1 var(--brain-mono); color: var(--brain-faint); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ── Pastki chap: masofa, ovoz, qatlamlar ── */
+.brain__controls { left: 18px; bottom: 16px; display: grid; gap: 10px; max-width: calc(100% - 36px); }
+.brain__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.brain__scale {
+  display: inline-flex; width: max-content;
+  padding: 3px;
+  border: 1px solid var(--brain-hair); border-radius: 999px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.brain__scale button {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border: 0; border-radius: 999px; background: none;
+  font: 600 12px/1 var(--brain-body); color: var(--brain-muted);
+  cursor: pointer; transition: background 0.25s, color 0.25s;
+}
+.brain__scale button[aria-pressed="true"] { background: rgba(242, 201, 76, 0.16); color: var(--brain-gold); }
+
+.brain__sound {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 9px;
+  border: 1px solid var(--brain-hair); border-radius: 999px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  font: 600 12px/1 var(--brain-body); color: var(--brain-muted);
+  cursor: pointer; transition: color 0.2s, border-color 0.2s;
+}
+.brain__sound svg { width: 16px; height: 16px; }
+.brain__sound[aria-pressed="true"] { color: var(--brain-ice); border-color: rgba(143, 211, 255, 0.3); }
+.brain__sound[aria-pressed="true"] .wave { animation: brainBlink 1.6s ease-in-out infinite; }
+.brain__sound[aria-pressed="false"] .wave { display: none; }
+.brain__sound[aria-pressed="true"] .mute { display: none; }
+.brain__sound.is-waiting::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--brain-gold); box-shadow: 0 0 8px var(--brain-gold);
+  animation: brainBlink 1.2s ease-in-out infinite;
+}
+
+.brain__layers { display: flex; flex-wrap: wrap; gap: 6px; }
+.brain__layer {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px;
+  border: 1px solid var(--brain-hair); border-radius: 999px;
+  background: rgba(9, 18, 24, 0.55);
+  font: 600 12px/1 var(--brain-body);
+  cursor: pointer; transition: opacity 0.2s;
+}
+.brain__layer i { width: 7px; height: 7px; border-radius: 50%; }
+.brain__layer[aria-pressed="false"] { opacity: 0.4; }
+.brain__layer[aria-pressed="false"] i { box-shadow: none !important; }
+
+.brain__toast {
+  left: 50%; bottom: 76px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid rgba(143, 211, 255, 0.25); border-radius: 999px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  font: 600 12px/1.3 var(--brain-body); color: var(--brain-ice);
+  white-space: nowrap;
+  transition: opacity 0.5s, transform 0.5s;
+  pointer-events: none;
+}
+.brain__toast[hidden] { display: block !important; opacity: 0; transform: translate(-50%, 8px); }
+
+/* ── Parvoz ── */
+.brain__reticle, .brain__flight, .brain__flypad { display: none; }
+.brain.is-flying .brain__reticle,
+.brain.is-flying .brain__flight { display: block; }
+.brain.is-flying .brain__sky { cursor: crosshair; }
+.brain.is-flying .brain__search,
+.brain.is-flying .brain__counts { display: none; }
+
+.brain__reticle {
+  position: absolute; left: 50%; top: 50%; z-index: 1;
+  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  pointer-events: none; opacity: 0.7;
+  background:
+    linear-gradient(var(--brain-gold), var(--brain-gold)) 50% 0 / 1px 9px no-repeat,
+    linear-gradient(var(--brain-gold), var(--brain-gold)) 50% 100% / 1px 9px no-repeat,
+    linear-gradient(var(--brain-gold), var(--brain-gold)) 0 50% / 9px 1px no-repeat,
+    linear-gradient(var(--brain-gold), var(--brain-gold)) 100% 50% / 9px 1px no-repeat;
+}
+.brain__flight {
+  left: 50%; bottom: 16px; transform: translateX(-50%);
+  padding: 8px 16px;
+  border: 1px solid var(--brain-hair); border-radius: 999px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  font: 400 11px/1.3 var(--brain-mono); letter-spacing: 0.06em;
+  color: var(--brain-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.brain__flight b { color: var(--brain-ink); font-weight: 600; }
+.brain__flight em { font-style: normal; color: var(--brain-gold); }
+
+.brain__stick {
+  position: absolute; left: 20px; bottom: 120px;
+  width: 116px; height: 116px; border-radius: 50%;
+  border: 1px solid var(--brain-hair-strong);
+  background: radial-gradient(circle, rgba(242, 201, 76, 0.06), rgba(9, 18, 24, 0.55) 70%);
+  touch-action: none; z-index: 2;
+}
+.brain__knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff3c4, var(--brain-gold) 55%, #9b7a20);
+  box-shadow: 0 0 18px rgba(242, 201, 76, 0.5);
+}
+.brain__flybtns { position: absolute; right: 16px; bottom: 120px; display: grid; gap: 10px; z-index: 2; }
+.brain__flybtns button {
+  width: 58px; height: 52px;
+  border: 1px solid var(--brain-hair-strong); border-radius: 14px;
+  background: var(--brain-glass);
+  font: 700 12px/1 var(--brain-body); color: var(--brain-ink);
+  touch-action: none; cursor: pointer;
+}
+.brain__flybtns button.is-held { border-color: var(--brain-gold); color: var(--brain-gold); background: rgba(242, 201, 76, 0.12); }
+
+@media (pointer: coarse) {
+  .brain.is-flying .brain__flypad { display: block; }
+  .brain.is-flying .brain__layers,
+  .brain.is-flying .brain__brand { display: none; }
+  .brain.is-flying .brain__flight { top: 14px; bottom: auto; }
+  .brain.is-flying .brain__toast { bottom: auto; top: 96px; }
+}
+
+/* ── Tafsilot paneli ── */
+.brain__panel {
+  position: absolute; z-index: 3;
+  top: 70px; right: 18px; bottom: 16px;
+  width: 340px;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--brain-hair); border-radius: 18px;
+  background: var(--brain-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2); backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s;
+}
+.brain__panel[hidden] { display: flex !important; transform: translateX(calc(100% + 40px)); opacity: 0; pointer-events: none; }
+.brain__panel-head { position: relative; padding: 18px 18px 14px; border-bottom: 1px solid var(--brain-hair); }
+.brain__thumb {
+  display: block; width: 88px; height: 88px; margin-bottom: 12px;
+  object-fit: contain; border-radius: 14px; background: #fff;
+  box-shadow: 0 0 0 1px var(--brain-hair), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.brain__kind { display: flex; align-items: center; gap: 8px; font: 600 10px/1 var(--brain-mono); letter-spacing: 0.22em; text-transform: uppercase; }
+.brain__kind i { width: 8px; height: 8px; border-radius: 50%; }
+.brain__title { margin: 10px 0 0; padding-right: 28px; font: 800 20px/1.2 var(--brain-body); color: var(--brain-ink); text-wrap: balance; }
+.brain__panel-sub { margin: 4px 0 0; font-size: 12px; color: var(--brain-muted); }
+.brain__close {
+  position: absolute; top: 12px; right: 12px; z-index: 1;
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.04);
+  color: var(--brain-muted); cursor: pointer;
+}
+.brain__close:hover { background: rgba(255, 255, 255, 0.09); color: var(--brain-ink); }
+.brain__panel-body { flex: 1; overflow-y: auto; padding: 14px 18px 18px; display: grid; align-content: start; gap: 16px; }
+.brain__panel-body p { margin: 0; color: #c7d9d0; font-size: 13px; max-width: 60ch; }
+.brain__panel-body .brain__muted { color: var(--brain-faint); font-size: 12px; }
+
+.brain__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; border-radius: 12px; overflow: hidden; background: var(--brain-hair); }
+.brain__fact { padding: 11px 12px; background: rgba(4, 10, 14, 0.78); }
+.brain__fact dt { font: 600 10px/1 var(--brain-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--brain-faint); }
+.brain__fact dd { margin: 7px 0 0; font: 600 16px/1.1 var(--brain-mono); font-variant-numeric: tabular-nums; color: var(--brain-ink); overflow-wrap: anywhere; }
+
+.brain__pill { display: inline-flex; align-items: center; gap: 6px; width: max-content; padding: 4px 10px; border-radius: 999px; font: 700 11px/1 var(--brain-body); }
+.brain__pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.brain__links h3 { margin: 0 0 8px; font: 600 10px/1 var(--brain-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--brain-faint); }
+.brain__links ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.brain__links button {
+  display: flex; width: 100%; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 0; border-radius: 9px; background: none;
+  text-align: left; cursor: pointer; transition: background 0.15s;
+}
+.brain__links button:hover { background: rgba(255, 255, 255, 0.05); }
+.brain__links i { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.brain__links span { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brain__links small { font: 400 11px/1 var(--brain-mono); color: var(--brain-faint); font-variant-numeric: tabular-nums; }
+
+.brain__action {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 10px 14px;
+  border: 1px solid rgba(242, 201, 76, 0.35); border-radius: 12px;
+  background: rgba(242, 201, 76, 0.08);
+  font: 700 13px/1 var(--brain-body); color: var(--brain-gold);
+  cursor: pointer; transition: background 0.2s;
+}
+.brain__action:hover { background: rgba(242, 201, 76, 0.16); }
+
+/* To'liq ekran: menyu va sarlavha yo'q — galaktika butun ekranni oladi */
+.brain:fullscreen { height: 100dvh; }
+.brain.is-full { height: 100vh; height: 100dvh; }
+.brain__full .leave { display: none; }
+.brain__full[aria-pressed="true"] .enter { display: none; }
+.brain__full[aria-pressed="true"] .leave { display: inline; }
+.brain__full[aria-pressed="true"] { color: var(--brain-gold); border-color: rgba(242, 201, 76, 0.4); }
+.brain__full[hidden] { display: none; }
+
+@keyframes brainBlink { 50% { opacity: 0.3; } }
+
+@media (max-width: 760px) {
+  .brain__brand { top: 12px; left: 12px; }
+  .brain__name { font-size: 18px; }
+  .brain__count { padding: 4px 7px; }
+  .brain__count b { font-size: 13px; }
+  .brain__search { top: auto; bottom: 112px; right: 12px; left: 12px; width: auto; }
+  .brain__controls { left: 12px; bottom: 12px; }
+  .brain__toast { bottom: 164px; font-size: 11px; }
+  .brain__panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 60%; }
+  .brain__panel[hidden] { transform: translateY(calc(100% + 30px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brain__panel, .brain__toast, .brain__scale button, .brain__layer { transition: none; }
+  .brain__live i, .brain__sound .wave, .brain__sound.is-waiting::after { animation: none; }
+}
