@@ -23,7 +23,7 @@ def normalize(lang) -> str:
 # Handler ikkala tildagi yorliqni ham tanishi kerak: mijoz tilni
 # almashtirgandan keyin ham eski klaviatura tugmasi ishlayversin.
 BUTTONS = {
-    "catalog": {"uz": "🥟 Katalogni ochish", "ru": "🥟 Открыть каталог"},
+    "catalog": {"uz": "🛒 Katalogni ochish", "ru": "🛒 Открыть каталог"},
     "orders": {"uz": "📦 Buyurtmalarim", "ru": "📦 Мои заказы"},
     "contact": {"uz": "📞 Biz bilan aloqa", "ru": "📞 Связаться с нами"},
     "help": {"uz": "ℹ️ Yordam", "ru": "ℹ️ Помощь"},
@@ -59,17 +59,19 @@ TEXTS = {
     "welcome": {
         "uz": (
             "Assalomu alaykum, <b>{name}</b>! 👋\n\n"
-            "🥟 <b>MUSA rasmiy do'koniga xush kelibsiz!</b>\n"
-            "<i>Muzlatilgan mahsulotlar — yangi xomashyo, shok muzlatish.</i>\n\n"
-            "🍽 <b>Yarim tayyor mahsulotlar, muzqaymoq va siroklar.</b>\n\n"
-            "👇 <i>Buyurtmani boshlash uchun quyidagi tugmani bosing:</i>"
+            "🏪 <b>Trade Avenue — do'konlar uchun ulgurji savdo</b>\n"
+            "<i>Katalog, narxlar va buyurtmalar — shu yerning o'zida.</i>\n\n"
+            "🔑 Birinchi kirishda do'koningiz <b>telefon raqami</b> va agentimiz bergan "
+            "<b>6 belgili kod</b> so'raladi.\n\n"
+            "👇 <i>Boshlash uchun quyidagi tugmani bosing:</i>"
         ),
         "ru": (
             "Здравствуйте, <b>{name}</b>! 👋\n\n"
-            "🥟 <b>Добро пожаловать в официальный магазин MUSA!</b>\n"
-            "<i>Замороженные продукты — свежее сырьё, шоковая заморозка.</i>\n\n"
-            "🍽 <b>Полуфабрикаты, мороженое и сиропы.</b>\n\n"
-            "👇 <i>Нажмите кнопку ниже, чтобы сделать заказ:</i>"
+            "🏪 <b>Trade Avenue — оптовые закупки для магазинов</b>\n"
+            "<i>Каталог, цены и заказы — прямо здесь.</i>\n\n"
+            "🔑 При первом входе понадобятся <b>номер телефона</b> магазина и "
+            "<b>6-значный код</b> от нашего агента.\n\n"
+            "👇 <i>Нажмите кнопку ниже, чтобы начать:</i>"
         ),
     },
     "ask_phone": {
@@ -110,19 +112,19 @@ TEXTS = {
     # ── Katalog ──
     "catalog_title": {
         "uz": (
-            "🥟 <b>MUSA KATALOGI</b>\n"
+            "🛒 <b>TRADE AVENUE KATALOGI</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Yarim tayyor mahsulotlar, muzqaymoq va siroklar — hammasi bir joyda.\n\n"
-            "👇 <b>Katalogni ochish</b> tugmasini bosing — do'kon shu yerning o'zida ochiladi."
+            "Do'koningiz uchun tovarlar — ulgurji narxlarda, bir joyda.\n\n"
+            "👇 <b>Katalogni ochish</b> tugmasini bosing — katalog shu yerning o'zida ochiladi."
         ),
         "ru": (
-            "🥟 <b>КАТАЛОГ MUSA</b>\n"
+            "🛒 <b>КАТАЛОГ TRADE AVENUE</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Полуфабрикаты, мороженое и сиропы — всё в одном месте.\n\n"
-            "👇 Нажмите <b>«Открыть каталог»</b> — магазин откроется прямо здесь."
+            "Товары для вашего магазина — по оптовым ценам, в одном месте.\n\n"
+            "👇 Нажмите <b>«Открыть каталог»</b> — каталог откроется прямо здесь."
         ),
     },
-    "catalog_button": {"uz": "🥟 Katalogni ochish", "ru": "🥟 Открыть каталог"},
+    "catalog_button": {"uz": "🛒 Katalogni ochish", "ru": "🛒 Открыть каталог"},
 
     # ── Buyurtmalar ──
     "orders_button": {"uz": "📦 Buyurtmalarimni ko'rish", "ru": "📦 Посмотреть мои заказы"},
@@ -131,15 +133,13 @@ TEXTS = {
             "📦 <b>Buyurtmalarim</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "Sizda hozircha buyurtma yo'q.\n\n"
-            "🥟 Yarim tayyor mahsulotlar, 🍦 muzqaymoq va 🍫 siroklar.\n"
-            "Katalogdan tanlab, birinchi buyurtmangizni bering!"
+            "Katalogdan tovarlarni tanlab, birinchi buyurtmangizni bering!"
         ),
         "ru": (
             "📦 <b>Мои заказы</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "Пока у вас нет заказов.\n\n"
-            "🥟 Полуфабрикаты, 🍦 мороженое и 🍫 сиропы.\n"
-            "Выберите в каталоге и сделайте первый заказ!"
+            "Выберите товары в каталоге и сделайте первый заказ!"
         ),
     },
     "orders_list": {
@@ -170,30 +170,30 @@ TEXTS = {
     # ── Aloqa va yordam ──
     "contact": {
         "uz": (
-            "📞 <b>MUSA bilan bog'lanish:</b>\n\n"
+            "📞 <b>Trade Avenue bilan bog'lanish:</b>\n\n"
             "💬 <b>Mijozlar xizmati:</b> {telegram}\n"
             "📞 <b>Telefon raqam:</b> {phone}\n"
             "✉️ <b>Email:</b> {email}\n"
             "📍 <b>Manzil:</b> {city}\n"
             "⏰ <b>Ish vaqti:</b> {hours}\n\n"
-            "<i>Ulgurji xarid va hamkorlik bo'yicha ham shu raqamga murojaat qiling.</i>"
+            "<i>Hamkorlik va yangi do'konni ulash bo'yicha ham shu raqamga murojaat qiling.</i>"
         ),
         "ru": (
-            "📞 <b>Связаться с MUSA:</b>\n\n"
+            "📞 <b>Связаться с Trade Avenue:</b>\n\n"
             "💬 <b>Служба поддержки:</b> {telegram}\n"
             "📞 <b>Телефон:</b> {phone}\n"
             "✉️ <b>Email:</b> {email}\n"
             "📍 <b>Адрес:</b> {city}\n"
             "⏰ <b>Время работы:</b> {hours}\n\n"
-            "<i>По оптовым закупкам и сотрудничеству — по этому же номеру.</i>"
+            "<i>По сотрудничеству и подключению нового магазина — по этому же номеру.</i>"
         ),
     },
     "help": {
         "uz": (
             "ℹ️ <b>Botdan qanday foydalanish mumkin?</b>\n\n"
-            "1️⃣ Yozuv maydoni yonidagi <b>«🥟 Katalog»</b> tugmasini bosib, "
-            "MUSA mahsulotlari bilan tanishing.\n"
-            "2️⃣ O'zingizga yoqqan mahsulotlarni <b>Savatga</b> qo'shing.\n"
+            "1️⃣ Yozuv maydoni yonidagi <b>«🛒 Katalog»</b> tugmasini bosing va "
+            "do'koningiz telefon raqami hamda agent bergan kod bilan kiring.\n"
+            "2️⃣ Kerakli tovarlarni <b>Savatga</b> qo'shing.\n"
             "3️⃣ Buyurtmani rasmiylashtirishda <b>Naqd</b> yoki <b>Karta</b> orqali to'lov usulini tanlang.\n"
             "4️⃣ Agar karta orqali to'lov qilsangiz, to'lov chekini botga yuboring.\n"
             "5️⃣ Buyurtmangiz holatini <b>Buyurtmalarim</b> bo'limidan kuzatib boring.\n\n"
@@ -201,9 +201,9 @@ TEXTS = {
         ),
         "ru": (
             "ℹ️ <b>Как пользоваться ботом?</b>\n\n"
-            "1️⃣ Нажмите кнопку <b>«🥟 Katalog»</b> рядом с полем ввода "
-            "и посмотрите продукцию MUSA.\n"
-            "2️⃣ Добавьте понравившиеся товары в <b>Корзину</b>.\n"
+            "1️⃣ Нажмите кнопку <b>«🛒 Katalog»</b> рядом с полем ввода и войдите "
+            "по номеру телефона магазина и коду от агента.\n"
+            "2️⃣ Добавьте нужные товары в <b>Корзину</b>.\n"
             "3️⃣ При оформлении выберите оплату: <b>Наличные</b> или <b>Карта</b>.\n"
             "4️⃣ При оплате картой отправьте чек боту.\n"
             "5️⃣ Следите за статусом в разделе <b>Мои заказы</b>.\n\n"
@@ -310,40 +310,6 @@ TEXTS = {
             "Пожалуйста, отправьте правильный чек ещё раз."
         ),
     },
-
-    # ── Baholash ──
-    "rate_ask": {
-        "uz": "⭐ <b>{order} buyurtmangiz qanday bo'ldi?</b>\n\n{scope}<i>Bahoingiz ilovada boshqa xaridorlarga yordam beradi.</i>",
-        "ru": "⭐ <b>Как вам заказ {order}?</b>\n\n{scope}<i>Ваша оценка поможет другим покупателям в приложении.</i>",
-    },
-    "rate_scope": {
-        "uz": "Bitta baho — buyurtmadagi {count} ta mahsulotning hammasiga qo'yiladi.\n\n",
-        "ru": "Одна оценка — сразу для всех {count} товаров заказа.\n\n",
-    },
-    "rate_skip": {"uz": "O'tkazib yuborish", "ru": "Пропустить"},
-    "rate_skipped": {"uz": "O'tkazib yuborildi", "ru": "Пропущено"},
-    "rate_thanks": {"uz": "Rahmat!", "ru": "Спасибо!"},
-    "rate_not_yours": {
-        "uz": "Bu buyurtma sizniki emas",
-        "ru": "Это не ваш заказ",
-    },
-    "rate_failed": {
-        "uz": "Baho saqlanmadi — ilovada qoldirishingiz mumkin",
-        "ru": "Оценка не сохранилась — можно оставить её в приложении",
-    },
-    "rate_done_some": {
-        "uz": "{count} ta mahsulotga <b>{stars}</b> qo'yildi.\nBaholaringiz mahsulot sahifasida ko'rinadi va boshqa xaridorlarga yordam beradi.",
-        "ru": "Оценка <b>{stars}</b> поставлена {count} товарам.\nОна появится на странице товара и поможет другим покупателям.",
-    },
-    "rate_done_one": {
-        "uz": "Mahsulotga <b>{stars}</b> qo'yildi.\nBaholaringiz mahsulot sahifasida ko'rinadi va boshqa xaridorlarga yordam beradi.",
-        "ru": "Товару поставлена оценка <b>{stars}</b>.\nОна появится на странице товара и поможет другим покупателям.",
-    },
-    "rate_none": {
-        "uz": "Baho qoldirmadingiz — zarari yo'q.\nXohlasangiz, keyinroq ilovadagi mahsulot sahifasidan baholashingiz mumkin.",
-        "ru": "Вы не оставили оценку — ничего страшного.\nПри желании оцените позже на странице товара в приложении.",
-    },
-    "thanks_title": {"uz": "💚 <b>Rahmat!</b>", "ru": "💚 <b>Спасибо!</b>"},
 
     # ── Holat o'zgarishi (kuryer tugmalari) ──
     "status_delivering": {

@@ -1,6 +1,6 @@
 import { LayoutGrid, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { categoryIcon } from '../../utils/category-icons'
+import { CATEGORY_ICON_KEYS, categoryIcon } from '../../utils/category-icons'
 import { apiPost } from '../lib/api'
 import { useCategories, useProducts } from '../lib/live'
 import { ConfirmDialog, Modal } from '../components/Modal'
@@ -10,11 +10,6 @@ import { SortableList } from '../components/SortableList'
 
 type Draft = { id?: string; name: string; nameRu: string; icon: string }
 
-/** Admin tanlashi mumkin bo'lgan ikonka kalitlari — category-icons.ts dagilar. */
-const ICONS = [
-  'chuchvara', 'manti', 'somsa', 'kotlet', 'tovuq', 'meat', 'fish',
-  'muzqaymoq', 'eskimo', 'sirok', 'sut', 'xamir', 'frozen', 'set', 'box',
-]
 
 export function CategoriesPage() {
   const { categories, loading } = useCategories()
@@ -182,7 +177,7 @@ export function CategoriesPage() {
             className="adm-input"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="Chuchvara"
+            placeholder="Ichimliklar"
           />
 
           {/* Ruscha nom faqat ko'rinish uchun — mahsulotlar kategoriyaga
@@ -192,7 +187,7 @@ export function CategoriesPage() {
             className="adm-input"
             value={draft.nameRu}
             onChange={(e) => setDraft({ ...draft, nameRu: e.target.value })}
-            placeholder="Пельмени"
+            placeholder="Напитки"
           />
           <p className="mt-2 text-xs" style={{ color: 'var(--faint)' }}>
             Bo‘sh qoldirilsa ruscha tilda ham o‘zbekcha nomi ko‘rinadi.
@@ -200,7 +195,7 @@ export function CategoriesPage() {
 
           <p className="adm-label mt-4">Ikonka</p>
           <div className="grid grid-cols-5 gap-2 sm:grid-cols-8">
-            {ICONS.map((key) => {
+            {CATEGORY_ICON_KEYS.map((key) => {
               const Icon = categoryIcon(key, '')
               const active = draft.icon === key
               return (

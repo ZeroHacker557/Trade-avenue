@@ -201,7 +201,7 @@ export function buildReport(orders: AdminOrder[], products: ProductRow[], period
 export function reportSheets(r: Report): SheetSpec[] {
   const periodText = `Davr: ${dayLabel(r.period.from)} — ${dayLabel(new Date(r.period.to.getTime() - 1))}`
   const made = `Tayyorlandi: ${new Date().toLocaleString('ru-RU')}`
-  const title = (name: string) => [`MUSA — ${name}`, `${periodText} · ${made}`]
+  const title = (name: string) => [`Trade Avenue — ${name}`, `${periodText} · ${made}`]
   const pct = (n: number) => Math.round(n * 10) / 10
 
   return [

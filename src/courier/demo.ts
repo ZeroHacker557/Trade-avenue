@@ -9,14 +9,6 @@ import type { CashHandover, CourierOrder, CourierOverview, ProblemCode } from '.
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
 
-// Do'kondagi haqiqiy mahsulotlarning kichik rasmlari
-const STORAGE = 'https://firebasestorage.googleapis.com/v0/b/musa-onlineshop.firebasestorage.app/o/products%2F'
-const IMG = {
-  pelmeni: STORAGE + '1789381730766_6zc9cc_thumb.webp?alt=media&token=a7de0881-f0ed-4254-818d-0687836215d1',
-  sirok: STORAGE + '102422_0_2f12e069_thumb.webp?alt=media&token=abf82cb0-a473-41f9-8e20-233e51f078b8',
-  pitsa: STORAGE + '1790152868913_uaalcp_thumb.webp?alt=media&token=efc5ce4f-b6c8-4c7d-a8c0-6bf5270dcbbb',
-}
-
 function order(
   id: string, n: number, address: string, lat: number, lng: number,
   total: number, pay: string, minutes: number, extra: Partial<CourierOrder> = {},
@@ -39,11 +31,9 @@ function order(
       location: { lat, lng },
     },
     items: [
-      { name: 'Musa Muzlatilgan Chuchvara Pelmeni 1 kg', quantity: 2, price: 52600, size: '1 kg', image: IMG.pelmeni },
-      { name: 'Yarim Tayyor pitsa 550 gr 2 dona', quantity: 1, price: 18000, size: '550gr 2dona', image: IMG.pitsa },
-      { name: 'Sirok Musa Banan', quantity: 6, price: 4000, size: '45gr', image: IMG.sirok },
-      // Rasmsiz mahsulot — o'rniga belgi chiqishi tekshiriladi
-      { name: 'Musa Kartoshkali Somsa 12 dona', quantity: 1, price: 38000, size: '12 dona', image: null },
+      { name: 'Coca-Cola 1,5 L (6 dona)', quantity: 4, price: 78000, size: '1,5 L', image: null },
+      { name: 'Ariel kir yuvish kukuni 3 kg', quantity: 2, price: 96000, size: '3 kg', image: null },
+      { name: 'Makfa makaron 400 gr (20 dona)', quantity: 1, price: 132000, size: '400 gr', image: null },
     ],
     total,
     paymentMethod: pay,

@@ -127,7 +127,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 export function SupportPage({ onBack }: Props) {
   const t = useT()
   // detect lang from localStorage
-  const lang = (localStorage.getItem('musaShopLang') ?? 'uz') as 'uz' | 'ru'
+  const lang = (localStorage.getItem('taLang') ?? 'uz') as 'uz' | 'ru'
   const faqs = lang === 'ru' ? faqs_ru : faqs_uz
   // Aloqa ma'lumotlari admin paneldan (Sozlamalar → «Biz bilan aloqa»)
   const [contact, setContact] = useState<ContactInfo>(DEFAULT_CONTACT)

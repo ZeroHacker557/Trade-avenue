@@ -1,4 +1,4 @@
-import mark from '../../images/musa-mark.webp'
+import mark from '../../images/ta-mark.svg'
 import { BRAND } from '../../config/brand'
 
 type Props = {
@@ -10,12 +10,11 @@ type Props = {
 }
 
 /**
- * MUSA logotipi.
+ * Trade Avenue logotipi.
  *
- * Belgi — logotipning o'zi: yashil fon ustidagi sariq plita. Rasm allaqachon
- * yashil bo'lgani uchun ostiga qo'shimcha fon qo'yilmaydi, faqat burchaklari
- * yumaloqlanadi — shu tariqa yorug' va qorong'i temada bir xil ko'rinadi va
- * favicon bilan aynan mos tushadi.
+ * Belgi — ko'k plita ustida «T» va yo'lga o'xshash «A» (avenue), o'rtasida
+ * amber yo'l chizig'i. Plitaning o'z foni bor, shuning uchun yorug' va
+ * qorong'i temada bir xil ko'rinadi va favicon bilan aynan mos tushadi.
  */
 export function BrandLogo({ size = 44, markOnly = false, className = '' }: Props) {
   return (
@@ -25,21 +24,16 @@ export function BrandLogo({ size = 44, markOnly = false, className = '' }: Props
         alt={BRAND.name}
         width={size}
         height={size}
-        className="shrink-0 object-cover"
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size * 0.28,
-          boxShadow: 'var(--shadow-brand)',
-        }}
+        className="shrink-0"
+        style={{ width: size, height: size, borderRadius: size * 0.25, boxShadow: 'var(--shadow-brand)' }}
         decoding="async"
       />
 
       {!markOnly && (
         <span className="min-w-0 leading-none">
           <b
-            className="wordmark block"
-            style={{ fontSize: size * 0.6, color: 'var(--ink)' }}
+            className="wordmark block whitespace-nowrap"
+            style={{ fontSize: size * 0.46, color: 'var(--ink)' }}
           >
             {BRAND.name}
           </b>

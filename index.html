@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a7a3d" />
+    <meta name="theme-color" content="#1d4ed8" />
     <meta
       name="description"
-      content="MUSA — muzlatilgan mahsulotlar: yarim tayyor (chuchvara, manti, somsa, kotlet, naggets), muzqaymoq va siroklar. Telegram orqali buyurtma bering, eshigingizgacha yetkazamiz."
+      content="Trade Avenue — do'konlar uchun ulgurji savdo: katalog, narxlar va buyurtmalar Telegram ichida."
     />
-    <title>MUSA Shop — Muzlatilgan mahsulotlar</title>
+    <title>Trade Avenue — do'konlar uchun ulgurji savdo</title>
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
     <!-- Mahsulot rasmlari shu yerdan — ulanish oldindan ochiladi -->
@@ -24,16 +24,16 @@
   <body>
     <!--
       Ochilish animatsiyasi.
-      Yashil fonda MUSA logosi paydo bo'lib, muzdek yaltiraydi, so'ng
-      ko'rinish silliq so'nib ostidan ilova ochiladi.
+      To'q ko'k fonda Trade Avenue belgisi paydo bo'ladi, yo'l chizig'i
+      yugurib o'tadi, so'ng ko'rinish silliq so'nib ostidan ilova ochiladi.
 
       ATAYLAB shu yerda, oddiy (module bo'lmagan) skript bilan: React va
       JavaScript bundle yuklanishini kutmay, Telegram oynani ochgan zahoti
       chiziladi — oq chaqnash bo'lmaydi.
 
       Qoidalar:
-        - ilova tayyor bo'lganda tugaydi (window 'musa:ready'), lekin kamida
-          animatsiya ko'rinib ulguradi va 2,6 soniyadan ortiq kutilmaydi;
+        - ilova tayyor bo'lganda tugaydi (window 'ta:ready'), lekin kamida
+          animatsiya ko'rinib ulguradi va 2,4 soniyadan ortiq kutilmaydi;
         - bosilsa darhol o'tkazib yuboriladi;
         - bir kunda qayta ochilganda — qisqaroq;
         - «harakatni kamaytirish» yoqilgan telefonda — oddiy so'nish.
@@ -41,50 +41,40 @@
     <style id="splash-style">
       #splash {
         position: fixed; inset: 0; z-index: 2147483000; overflow: hidden;
-        background: radial-gradient(120% 90% at 50% 45%, #0d6a3c 0%, #064228 55%, #021a10 100%);
+        display: grid; place-items: center; align-content: center; gap: 18px;
+        background: radial-gradient(120% 90% at 50% 40%, #1e40af 0%, #142a6b 55%, #0a1433 100%);
         touch-action: none; -webkit-tap-highlight-color: transparent;
+        font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
       }
-      /* Biroz eni uzun (132×112): rasm o'zi kvadrat, yon tomonlari logoning
-         yashil foni bilan to'ldiriladi — rasm cho'zilmaydi */
       #splash .sp-logo {
-        position: absolute; left: 50%; top: 50%; width: 132px; height: 112px; margin: -56px 0 0 -66px;
-        border-radius: 28px; overflow: hidden; opacity: 0; transform: scale(0.84); background: #028140;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-        transition: box-shadow 0.5s ease, background-color 0.5s ease;
+        width: 112px; height: 112px; border-radius: 28px; overflow: hidden;
+        opacity: 0; transform: scale(0.84);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 50px rgba(0, 0, 0, 0.45);
         animation: spLogoIn 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.25) 0.05s forwards;
       }
-      #splash .sp-logo img { display: block; width: 112px; height: 112px; margin: 0 auto; transition: filter 0.5s ease; }
-      #splash .sp-logo::before,
-      #splash .sp-logo::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-      #splash .sp-logo::before {
-        opacity: 0; transition: opacity 0.5s ease;
-        background:
-          radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.85) 0 6%, transparent 22%),
-          radial-gradient(circle at 88% 92%, rgba(225, 245, 255, 0.7) 0 5%, transparent 20%),
-          linear-gradient(160deg, rgba(236, 249, 255, 0.7) 0%, rgba(170, 222, 255, 0.28) 42%, rgba(210, 238, 255, 0.35) 100%);
+      #splash .sp-logo svg { display: block; width: 100%; height: 100%; }
+      #splash .sp-road { stroke-dasharray: 3 20; animation: spRoad 1s linear 0.3s infinite; }
+      #splash .sp-name {
+        color: #ffffff; font-weight: 800; font-size: 22px; letter-spacing: 0.02em;
+        opacity: 0; transform: translateY(6px); animation: spText 0.45s ease 0.3s forwards;
       }
-      #splash .sp-logo::after {
-        transform: translateX(-130%);
-        background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.9) 48%, transparent 62%);
+      #splash .sp-name small {
+        display: block; margin-top: 4px; text-align: center; font-size: 10px; font-weight: 700;
+        letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62);
       }
-      #splash.is-frozen .sp-logo {
-        box-shadow: 0 0 0 2px rgba(228, 247, 255, 0.95), 0 0 0 6px rgba(190, 232, 255, 0.22), 0 0 48px rgba(165, 225, 255, 0.8), 0 18px 50px rgba(0, 0, 0, 0.45);
-      }
-      #splash.is-frozen .sp-logo { background: #1e8751; } /* = #028140 + rasmdagi filtr */
-      #splash.is-frozen .sp-logo img { filter: saturate(0.78) brightness(1.12) contrast(0.95); }
-      #splash.is-frozen .sp-logo::before { opacity: 1; }
-      #splash.is-frozen .sp-logo::after { animation: spShine 1.5s ease-in-out 0.05s infinite; }
       #splash.is-leaving { opacity: 0; transform: scale(1.04); transition: opacity 0.45s ease, transform 0.45s ease; }
       #splash.is-quick.is-leaving { transition-duration: 0.32s; }
       @keyframes spLogoIn { to { opacity: 1; transform: scale(1); } }
-      @keyframes spShine { 0% { transform: translateX(-130%); } 55%, 100% { transform: translateX(130%); } }
+      @keyframes spText { to { opacity: 1; transform: none; } }
+      @keyframes spRoad { to { stroke-dashoffset: -23; } }
       @media (prefers-reduced-motion: reduce) {
         #splash, #splash * { animation: none !important; }
-        #splash .sp-logo { opacity: 1; transform: none; }
+        #splash .sp-logo, #splash .sp-name { opacity: 1; transform: none; }
       }
     </style>
     <div id="splash" aria-hidden="true">
-      <div class="sp-logo"><img alt="" src="data:image/webp;base64,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"></div>
+      <div class="sp-logo"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#1d4ed8"/><rect x="13" y="13" width="38" height="7.5" rx="3.75" fill="#fff"/><path d="M32 25 L18.5 51 M32 25 L45.5 51" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round"/><path class="sp-road" d="M32 34.5 v3.5 M32 43 v5" fill="none" stroke="#f59e0b" stroke-width="3.4" stroke-linecap="round"/></svg></div>
+      <div class="sp-name">Trade Avenue<small>Do‘konlar uchun ulgurji savdo</small></div>
     </div>
     <script>
       (function () {
@@ -97,8 +87,8 @@
         var today = new Date().toDateString()
         var quick = reduce
         try {
-          if (localStorage.getItem('musaSplashDay') === today) quick = true
-          localStorage.setItem('musaSplashDay', today)
+          if (localStorage.getItem('taSplashDay') === today) quick = true
+          localStorage.setItem('taSplashDay', today)
         } catch (e) { /* xotira yopiq — to'liq variant */ }
         if (quick) root.classList.add('is-quick')
 
@@ -106,20 +96,17 @@
         try {
           var tg = window.Telegram && window.Telegram.WebApp
           if (tg) {
-            if (tg.setHeaderColor) tg.setHeaderColor('#064228')
-            if (tg.setBackgroundColor) tg.setBackgroundColor('#021a10')
+            if (tg.setHeaderColor) tg.setHeaderColor('#142a6b')
+            if (tg.setBackgroundColor) tg.setBackgroundColor('#0a1433')
           }
         } catch (e) { /* eski Telegram */ }
 
         var start = performance.now()
         var MIN = quick ? 380 : 1000
-        var MAX = 2600
+        var MAX = 2400
         var ready = false
         var done = false
         var cleaned = false
-
-        // Logo muzlab, yaltiray boshlaydi
-        setTimeout(function () { root.classList.add('is-frozen') }, quick ? 120 : 420)
 
         function whenReady() {
           if (!ready || done) return
@@ -127,7 +114,7 @@
           if (left > 0) setTimeout(finish, left)
           else finish()
         }
-        window.addEventListener('musa:ready', function () { ready = true; whenReady() })
+        window.addEventListener('ta:ready', function () { ready = true; whenReady() })
         root.addEventListener('pointerdown', finish)
         setTimeout(finish, MAX)
 
@@ -149,7 +136,7 @@
           var style = document.getElementById('splash-style')
           if (style) style.remove()
           html.removeAttribute('data-splash')
-          window.dispatchEvent(new Event('musa:splash-done'))
+          window.dispatchEvent(new Event('ta:splash-done'))
         }
       })()
     </script>

@@ -18,7 +18,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 import firebase_db as db
 
 # --mine uchun: kimning buyurtmalari
-MY_USER_ID = 7203124812
+MY_USER_ID = int(__import__("os").environ.get("MY_USER_ID", "0"))  # o'z Telegram ID ingiz
 
 CONFIRM_WORD = "OCHIR"
 

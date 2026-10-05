@@ -22,7 +22,7 @@ import { OrdersBoard } from '../components/OrdersBoard'
 import { bundleText } from '../../utils/bundle'
 
 type View = 'list' | 'board'
-const VIEW_KEY = 'musa-admin:orders-view'
+const VIEW_KEY = 'ta-admin:orders-view'
 
 function readView(): View {
   try {

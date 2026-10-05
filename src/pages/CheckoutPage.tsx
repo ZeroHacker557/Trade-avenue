@@ -136,7 +136,7 @@ export function CheckoutPage({
     } catch (error) {
       setAppliedPromo(null)
       onUpdateForm('promoCode', undefined)
-      setPromoError(apiErrorText(error, t, 'reviews.error', formatPrice))
+      setPromoError(apiErrorText(error, t, 'checkout.promoFailed', formatPrice))
     } finally {
       setPromoLoading(false)
     }

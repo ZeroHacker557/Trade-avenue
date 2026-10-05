@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════
-# MUSA Shop — bot sozlamalari
+# Trade Avenue — bot sozlamalari
 #
 # Frontend tomonidagi mos fayllar:
 #   src/config/brand.ts     — bot username, aloqa ma'lumotlari
@@ -39,33 +39,34 @@ BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
 # Linko katalogini sinxronlash uchun /api/linko-cron kaliti.
 # Bo'sh bo'lsa bot sinxronni chaqirmaydi (Vercel cron baribir ishlaydi).
 CRON_SECRET  = os.environ.get("CRON_SECRET", "")
-BOT_USERNAME = "musauz_bot"
-ADMIN_IDS    = {7203124812}   # Egalar — panel orqali o'chirib bo'lmaydi
+BOT_USERNAME = "tradeavenue_bot"   # TODO: haqiqiy bot username
+# Egalar (Telegram ID) — panel orqali o'chirib bo'lmaydi. TODO: egasining ID si
+ADMIN_IDS    = {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
 # BotFather /setdomain da ham aynan shu domen ko'rsatilgan bo'lishi kerak.
-MINI_APP_URL = "https://musa-delivery.vercel.app"
+MINI_APP_URL = os.environ.get("MINI_APP_URL", "https://trade-avenue.vercel.app")
 # Admin panel — o'sha domendagi alohida sahifa. Bot uni faqat
 # adminlarga ko'rsatadi va u Telegram oynasida to'liq ekranda ochiladi.
 ADMIN_PANEL_URL = f"{MINI_APP_URL}/admin.html"
 
 # ── Kompaniya aloqa ma'lumotlari (bot javoblarida ko'rinadi) ──
 # Frontend tomonidagi nusxasi: src/config/brand.ts
-COMPANY_NAME     = "MUSA"
-COMPANY_TAGLINE  = "Muzlatilgan mahsulotlar"
-SUPPORT_PHONE    = "+998 97 400 98 77"
-SUPPORT_EMAIL    = "abubakrfrontend@gmail.com"
-SUPPORT_TELEGRAM = "@for_name"
+COMPANY_NAME     = "Trade Avenue"
+COMPANY_TAGLINE  = "Do'konlar uchun ulgurji savdo"
+SUPPORT_PHONE    = "+998 00 000 00 00"
+SUPPORT_EMAIL    = "info@tradeavenue.uz"
+SUPPORT_TELEGRAM = "@tradeavenue_support"
 COMPANY_CITY     = "Toshkent, O'zbekiston"
-WORK_HOURS       = "09:00 — 20:00"
+WORK_HOURS       = "09:00 — 18:00"
 
 # ── Firebase ──
 # Service account JSON fayli (loyiha ildizida yoki bot/ papkasida).
 # Firebase Console → Project Settings → Service accounts →
 # "Generate new private key". Fayl .gitignore'da.
-FIREBASE_KEY_FILE       = "musa-onlineshop-firebase-adminsdk-fbsvc-f51dff6a35.json"
+FIREBASE_KEY_FILE       = os.environ.get("FIREBASE_KEY_FILE", "trade-avenue-firebase-adminsdk.json")
 # Storage bucket — mahsulot rasmlari shu yerga yuklanadi.
 # Console → Storage → bucket nomi (odatda <project-id>.firebasestorage.app).
 # src/config/firebase.ts dagi storageBucket bilan bir xil bo'lishi shart.
-FIREBASE_STORAGE_BUCKET = "musa-onlineshop.firebasestorage.app"
+FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "trade-avenue.firebasestorage.app")
 
 # ── Server ──
 API_HOST     = "0.0.0.0"
@@ -76,5 +77,6 @@ DB_FILE      = "database.json"
 # To'lov sozlamalari — faqat BOSHLANG'ICH qiymat.
 # Bot birinchi ishga tushganda bular Firestore'dagi settings/payment
 # hujjatiga ko'chiriladi. Undan keyin haqiqiy manba — o'sha hujjat (F-07).
-CARD_NUMBER = "5614 6818 1872 7921"
-CARD_OWNER  = "Abubakir Abdulbositov"
+# Haqiqiy karta admin panel → Sozlamalar orqali kiritiladi.
+CARD_NUMBER = ""
+CARD_OWNER  = ""

@@ -81,7 +81,7 @@ export function exportSheets(products: ProductRow[], sections: Section[], catego
       name: 'Qo‘llanma',
       headers: ['Qanday ishlatiladi'],
       widths: [100],
-      title: ['MUSA — mahsulotlarni Excel orqali tahrirlash', `Yuklab olingan sana: ${today}`],
+      title: ['Trade Avenue — mahsulotlarni Excel orqali tahrirlash', `Yuklab olingan sana: ${today}`],
       rows: [
         ['1. «Mahsulotlar» varag‘ida kerakli kataklarni o‘zgartiring: narx, nom, tarjima, qoldiq, bo‘lim…'],
         ['2. «ID» ustuniga TEGMANG — mahsulot shu raqam bo‘yicha topiladi.'],

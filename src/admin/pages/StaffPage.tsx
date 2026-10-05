@@ -374,7 +374,7 @@ export function StaffPage({ me }: { me: Staff }) {
                 onChange={(e) =>
                   setDraft({ ...draft, telegramId: e.target.value.replace(/\D/g, '') })
                 }
-                placeholder="7203124812"
+                placeholder="123456789"
               />
               <p className="mt-1.5 text-xs" style={{ color: 'var(--faint)' }}>
                 Buyurtmalar shu Telegram hisobiga tushadi. ID ni @userinfobot beradi.

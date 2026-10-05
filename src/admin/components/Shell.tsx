@@ -18,8 +18,6 @@ type NavEntry = {
   /** Shu roldan past xodimga ko'rinmaydi. */
   min: StaffRole
   section?: string
-  /** Menyu oxirida alohida ajralib turadigan maxsus bo'lim. */
-  special?: boolean
 }
 
 const NAV: NavEntry[] = [
@@ -132,12 +130,11 @@ export function Shell({ staff, route, onNavigate, newOrders = 0, supportUnread =
           {visible.map((entry) => {
             const Icon = entry.icon
             return (
-              <div key={entry.route} className={entry.special ? 'adm-nav__special' : undefined}>
+              <div key={entry.route}>
                 {entry.section && <p className="adm-nav__section">{entry.section}</p>}
                 <button
                   className={
                     'adm-nav__item w-full ' +
-                    (entry.special ? 'adm-nav__item--brain ' : '') +
                     (route === entry.route ? 'active' : '')
                   }
                   onClick={() => {

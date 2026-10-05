@@ -2,7 +2,7 @@ import { getTelegram } from './telegram'
 
 export type ThemeMode = 'light' | 'dark'
 
-const STORAGE_KEY = 'musaShopTheme'
+const STORAGE_KEY = 'taTheme'
 
 /**
  * Ilova ko'rinishi.

@@ -9,7 +9,7 @@ import { launchParams } from '../utils/launch'
  * buyurtma o'sha e'longa yoziladi (admin panelda «buyurtmalar / tushum»).
  * Server: api/_lib/campaigns.ts.
  */
-const KEY = 'musa_campaign'
+const KEY = 'ta_campaign'
 const TTL = 72 * 60 * 60 * 1000
 const SOURCE_RE = /^(ch|bc)_[A-Za-z0-9]{3,40}$/
 

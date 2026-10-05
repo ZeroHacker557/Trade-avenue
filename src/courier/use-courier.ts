@@ -88,7 +88,7 @@ export function useCourierData(onNotCourier: () => void) {
     const onQueue = () => setQueued(readQueue().length)
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
-    window.addEventListener('musa:queue', onQueue)
+    window.addEventListener('ta:queue', onQueue)
     // Telegram oynasi yig'ilib, qayta ochilganda
     const tg = getTelegram()
     tg?.onEvent?.('activated', onVisible)
@@ -125,7 +125,7 @@ export function useCourierData(onNotCourier: () => void) {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
-      window.removeEventListener('musa:queue', onQueue)
+      window.removeEventListener('ta:queue', onQueue)
       tg?.offEvent?.('activated', onVisible)
     }
   }, [load])

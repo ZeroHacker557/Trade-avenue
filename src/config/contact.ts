@@ -8,7 +8,7 @@ import { BRAND } from './brand'
  */
 export type ContactInfo = {
   phone: string
-  /** Username, `@` siz: «for_name». */
+  /** Username, `@` siz: «tradeavenue_support». */
   telegram: string
   email: string
   address: string

@@ -54,11 +54,6 @@
   to { opacity: 1; transform: none; }
 }
 
-@keyframes admSlideIn {
-  from { transform: translateX(-100%); }
-  to { transform: none; }
-}
-
 /* ══════════ Topbar ══════════ */
 
 .adm-topbar {
@@ -595,7 +590,6 @@
   @page { size: A4; margin: 14mm; }
 }
 
-
 /* Klaviatura tugmasi — «Ctrl+V» kabi ko'rsatmalar uchun */
 .adm-kbd {
   display: inline-block;
@@ -631,7 +625,7 @@
 .adm-sort-row { position: relative; will-change: transform; }
 .adm-sort-row.is-dragging { z-index: 20; }
 .adm-sort-row.is-dragging > * {
-  box-shadow: 0 12px 32px rgb(6 26 16 / 0.18), 0 0 0 2px var(--brand-line);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.18), 0 0 0 2px var(--brand-line);
   transform: scale(1.015);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
@@ -747,44 +741,6 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .adm-pick.is-on .adm-pick__box { background: var(--brand); border-color: var(--brand); }
-
-/* ====== Menyu: «Miya» ======
-   Ro'yxat oxirida, chiziq bilan ajratilgan. Galaktika sahifasiga olib
-   boradi — shuning uchun oddiy bandlardan farqli, yulduzli ko'rinishda. */
-.adm-nav__special {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--line);
-}
-.adm-nav__item--brain {
-  --brain-sky:
-    radial-gradient(circle at 18% 50%, rgba(242, 201, 76, 0.35), transparent 38%),
-    radial-gradient(1px 1px at 62% 30%, #fff, transparent),
-    radial-gradient(1px 1px at 78% 70%, #cfe8ff, transparent),
-    radial-gradient(1px 1px at 90% 40%, #fff, transparent),
-    linear-gradient(120deg, #06121a 0%, #0b2a24 55%, #04080d 100%);
-  position: relative;
-  overflow: hidden;
-  color: #e6f2ec;
-  background: var(--brain-sky);
-  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.22);
-}
-.adm-nav__item--brain svg { color: #f2c94c; filter: drop-shadow(0 0 6px rgba(242, 201, 76, 0.7)); }
-/* Oddiy bandlarning hover/active foni `background` shorthand bilan
-   yozilgan — shu yerda ham to'liq qayta beriladi, aks holda osmon o'chardi */
-.adm-nav__item--brain:hover { color: #ffffff; background: var(--brain-sky); box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.5); }
-.adm-nav__item--brain.active {
-  color: #f7e3a1;
-  background: var(--brain-sky);
-  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.75), 0 0 18px rgba(242, 201, 76, 0.18);
-}
-.adm-nav__item--brain.active svg { color: #f2c94c; }
-
-/* Miya sahifasi — to'liq maydon, ichki bo'shliqsiz */
-.adm-content--bleed {
-  max-width: none;
-  padding: 0 !important;
-}
 
 /* ====== Mahsulot formasi: til yorliqlari ====== */
 .adm-lang-tabs {
@@ -1220,7 +1176,7 @@
   border-radius: var(--r-md);
   background: var(--surface);
 }
-.adm-preview .free-delivery { margin-bottom: 0; }
+
 .adm-preview input[type="range"] { width: 100%; accent-color: var(--brand); }
 
 /* ====== Vaqtli aksiyalar ====== */

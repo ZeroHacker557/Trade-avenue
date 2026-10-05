@@ -10,7 +10,7 @@ import { applyTheme, getStoredTheme } from './utils/theme'
 const root = createRoot(document.getElementById('root')!)
 
 // Ochilish animatsiyasi (index.html) tugagach Telegram paneli ilova rangiga qaytadi
-window.addEventListener('musa:splash-done', () => applyTheme(getStoredTheme()))
+window.addEventListener('ta:splash-done', () => applyTheme(getStoredTheme()))
 
 function render(insideTelegram: boolean) {
   // Tema birinchi bo'yoqdan oldin qo'llanadi — chaqnash bo'lmaydi

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { DEMO } from './api'
 
 /** Oxirgi ma'lum holat — ilova qayta ochilganda do'kon bir lahza chaqnab ketmasin. */
-const COURIER_KEY = 'musa:courier'
+const COURIER_KEY = 'ta:courier'
 /** Kuryer o'zi tanlagan rejim: do'kon yoki kuryer sahifasi. */
-const MODE_KEY = 'musa:mode'
+const MODE_KEY = 'ta:mode'
 
 function read(key: string): string | null {
   try {

@@ -37,7 +37,7 @@ export function ProductExcel({ products, categories, sections, onToast }: Props)
 
   const download = () => {
     const stamp = new Date().toISOString().slice(0, 10)
-    downloadWorkbook(`MUSA-mahsulotlar-${stamp}.xlsx`, exportSheets(products, sections, categories))
+    downloadWorkbook(`TradeAvenue-mahsulotlar-${stamp}.xlsx`, exportSheets(products, sections, categories))
     onToast(`${products.length} ta mahsulot Excel faylga yuklab olindi`)
   }
 

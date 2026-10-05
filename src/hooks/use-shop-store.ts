@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { withMainLines } from '../config/categories'
+import { sortCategories } from '../config/categories'
 import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToUserOrders, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
 import type { ReceiptUpload } from '../components/checkout/ReceiptSheet'
 import { ensureSignedIn, onAuthChanged, auth } from '../lib/auth'
@@ -23,10 +23,10 @@ import { useT } from '../i18n'
 /** Pastki menyudagi asosiy sahifalar — ularga o'tganda tarix tozalanadi. */
 const ROOT_PAGES: AppPage[] = ['home', 'catalog', 'favorites', 'orders', 'profile']
 
-const LIKES_KEY = 'musaShopLikes'
-const CART_KEY = 'musaShopCart'
+const LIKES_KEY = 'taLikes'
+const CART_KEY = 'taCart'
 /** «Manzil qo'shasizmi?» taklifi ko'rsatilganmi (bir marta so'raladi). */
-const ADDRESS_ASK_KEY = 'musaAddressAsked'
+const ADDRESS_ASK_KEY = 'taAddressAsked'
 /** Ilova tayyor bo'lgach taklifgacha kutiladigan vaqt. */
 const ADDRESS_ASK_DELAY = 2000
 
@@ -104,21 +104,6 @@ const DEEP_LINK = (() => {
   }
 })()
 
-/** Dev namunasi (?bannerDemo) — ishlab chiqarishda ishlatilmaydi. */
-const DEMO_BANNERS: HomeBanner[] = [
-  {
-    id: 'd1', active: true, layout: 'side', theme: 'yellow', image: "https://firebasestorage.googleapis.com/v0/b/musa-onlineshop.firebasestorage.app/o/products%2F1790682754909_o974cl_____________ChatGPT_29_____._2026__.__16_52_24.png?alt=media&token=8d31f3bf-fa40-4726-b99e-99ba513d595e",
-    badge: 'Setlar', badgeRu: 'Наборы', title: 'Setlarda 36 000 so‘mgacha tejang', titleRu: 'Экономьте до 36 000 сум',
-    subtitle: '3 xil tayyor set — bitta qutida', subtitleRu: '3 готовых набора', cta: 'Ko‘rish', ctaRu: 'Смотреть',
-    target: 'category', value: 'Setlar', url: '',
-  },
-  {
-    id: 'd2', active: true, layout: 'full', theme: 'dark', image: "https://firebasestorage.googleapis.com/v0/b/musa-onlineshop.firebasestorage.app/o/products%2F1790682455692_949dxb_____________ChatGPT_29_____._2026__.__16_47_28.png?alt=media&token=c1147f00-1e43-4ef9-b0ee-64090814192b",
-    badge: '', badgeRu: '', title: '', titleRu: '', subtitle: '', subtitleRu: '', cta: '', ctaRu: '',
-    target: 'catalog', value: '', url: '',
-  },
-]
-
 function initialPage(): AppPage {
   if (DEEP_LINK.cat !== null || DEEP_LINK.sec) return 'catalog'
   try {
@@ -148,13 +133,10 @@ export function useShopStore() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   // Aksiya o'zi boshlanib-tugashi uchun vaqt har 30 soniyada yangilanadi
   const [clock, setClock] = useState(() => Date.now())
-  const [categories, setCategories] = useState<Category[]>(() => withMainLines([]))
+  const [categories, setCategories] = useState<Category[]>([])
   const [sections, setSections] = useState<Section[]>([])
   /** Bosh sahifa bannerlari (admin qo'shgan, faollari). */
-  const [homeBanners, setHomeBanners] = useState<HomeBanner[]>(() =>
-    // Faqat lokal ishlab chiqishda: ?bannerDemo — karuselni namunaviy bannerlar bilan ko'rish
-    import.meta.env.DEV && new URLSearchParams(location.search).has('bannerDemo') ? DEMO_BANNERS : [],
-  )
+  const [homeBanners, setHomeBanners] = useState<HomeBanner[]>([])
 
   /*
    * Ekrandagi mahsulotlar:
@@ -328,9 +310,7 @@ export function useShopStore() {
     )
 
     const unsubCats = subscribeToCategories(
-      // Uchta asosiy yo'nalish doim ro'yxat boshida turadi — katalog
-      // bo'sh bo'lganda ham menyu bo'sh qolmasin (src/config/categories.ts).
-      (fbCats) => setCategories(withMainLines(fbCats)),
+      (fbCats) => setCategories(sortCategories(fbCats)),
       () => {},
     )
 

@@ -77,7 +77,7 @@ function App() {
 
   // Katalog keldi — ochilish animatsiyasi (index.html) tugashi mumkin
   useEffect(() => {
-    if (!shop.loading) window.dispatchEvent(new Event('musa:ready'))
+    if (!shop.loading) window.dispatchEvent(new Event('ta:ready'))
   }, [shop.loading])
 
   // Telegram BackButton — Android'ning tizim tugmasi ham shu bilan ishlaydi
@@ -234,6 +234,8 @@ function App() {
                 banners={shop.homeBanners}
                 onOpenSection={shop.openSectionById}
                 onOpenProduct={shop.openProductById}
+                lastOrder={shop.myOrders[0]}
+                onReorder={shop.reorder}
               />
             </div>
           )}

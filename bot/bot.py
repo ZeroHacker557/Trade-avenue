@@ -1,7 +1,8 @@
 """
-MUSA Shop Telegram Bot — Mini App + To'lov tizimi
+Trade Avenue Telegram Bot — Mini App + To'lov cheki
 
-MUSA — muzlatilgan mahsulotlar do'koni: yarim tayyor, muzqaymoq, sirok.
+Trade Avenue — do'konlar uchun ulgurji savdo: do'konchi mini app orqali
+tovar buyurtma qiladi, bot esa katalog tugmasi, chek va xabarlarni beradi.
 """
 import asyncio
 import hashlib
@@ -31,7 +32,6 @@ from config import (
 # Adminlar ro'yxati dinamik — panel orqali qo'shiladi/o'chiriladi
 from admins import all_admins, is_admin, can_open_panel
 import firebase_db as db
-from source_tracking import parse_start_source
 import i18n as tr
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -62,7 +62,7 @@ class PaymentUpload(StatesGroup):
 def main_kb(admin: bool = False, lang: str = tr.DEFAULT):
     rows = [
         # Oddiy tugma — bosilganda pastdagi menyu tugmasiga yo'naltiradi.
-        # Mini app faqat yozuv maydoni yonidagi "🥟 Katalog" orqali ochiladi.
+        # Mini app faqat yozuv maydoni yonidagi "🛒 Katalog" orqali ochiladi.
         [KeyboardButton(text=tr.button("catalog", lang))],
         [KeyboardButton(text=tr.button("orders", lang))],
         [KeyboardButton(text=tr.button("contact", lang)), KeyboardButton(text=tr.button("help", lang))]
@@ -154,7 +154,7 @@ def catalog_kb(lang: str = tr.DEFAULT) -> InlineKeyboardMarkup:
     """
     Katalogni ochadigan inline tugma.
 
-    Mijoz «🥟 Katalogni ochish» ni bosganda shu tugma chiqadi va
+    Mijoz «🛒 Katalogni ochish» ni bosganda shu tugma chiqadi va
     do'kon bir bosishda ochiladi. Ilgari faqat «pastdagi menyu
     tugmasini toping» degan matn chiqardi — ko'pchilik o'sha tugmani
     topolmay qaytib ketardi.
@@ -789,20 +789,10 @@ async def cmd_start(message: Message, state: FSMContext):
     # Panelga kira oladiganlar: adminlar va paneldagi owner/admin xodimlar
     admin = can_open_panel(user.id)
 
-    # Trafik manbasi (reklama havolasi: t.me/musauz_bot?start=meta_ig).
-    # Xato bo'lsa ham /start odatdagidek ishlashda davom etadi.
-    source = parse_start_source(message.text)
-    if source:
-        try:
-            await asyncio.to_thread(db.record_start, user.id, source, user.username, user.first_name)
-        except Exception as e:
-            logger.warning(f"[SOURCE] {user.id} {source}: {e}")
-
     lang = db.get_user_language(user.id)
 
     # Yangi mijoz — avval til. Faqat chek havolasi bilan kelgan bo'lsa
     # («/start receipt_...») to'xtatmaymiz: unga to'lov ma'lumoti kerak.
-    # Reklama havolasidan kelganlar ham tilni tanlaydi.
     if lang is None and "receipt_" not in (message.text or ""):
         await message.answer(tr.t("lang_ask"), reply_markup=language_kb())
         return
@@ -938,57 +928,6 @@ async def cmd_contact(message: Message):
         telegram=c["telegram"], phone=c["phone"],
         email=c["email"], city=c["address"], hours=c["workHours"],
     ))
-
-
-# ─── Baho: yetkazilgandan keyin ──────────────────────────────
-#
-# Buyurtma «Yetkazildi» bo'lganda mijozga BITTA baho so'rovi keladi
-# (admin panel yoki kuryer — qaysi yo'l bilan bo'lmasin). Bosilgan baho
-# buyurtmadagi HAMMA mahsulotga qo'yiladi.
-#
-# Ilgari har mahsulot alohida so'ralardi: besh mahsulotli buyurtmada
-# mijoz besh marta bosishi kerak edi va ko'pchilik yarim yo'lda tashlab
-# ketardi. So'rovni server yuboradi (api/_lib/actions/orders.ts → sendRatingPrompt),
-# bot faqat javobni qabul qiladi.
-
-@dp.callback_query(F.data.startswith("rv:"))
-async def cb_review(callback: CallbackQuery):
-    # Uchinchi bo'lak — eski xabarlarda mahsulot tartibi, endi «all».
-    # E'tiborga olinmaydi: baho baribir hamma mahsulotga qo'yiladi.
-    try:
-        _, order_id, _slot, stars = callback.data.split(":", 3)
-        stars = int(stars)
-    except ValueError:
-        await callback.answer()
-        return
-    if not 0 <= stars <= 5:
-        await callback.answer()
-        return
-
-    lang = tr.normalize(db.get_user_language(callback.from_user.id))
-
-    if stars == 0:
-        await callback.answer(tr.t("rate_skipped", lang))
-        done = tr.t("rate_none", lang)
-    else:
-        outcome, saved = db.save_bot_review_all(order_id, callback.from_user.id, stars)
-        if outcome == "not_yours":
-            await callback.answer(tr.t("rate_not_yours", lang), show_alert=True)
-            return
-        if outcome != "saved":
-            await callback.answer(tr.t("rate_failed", lang), show_alert=True)
-            return
-        await callback.answer(f"{tr.t('rate_thanks', lang)} {'⭐' * stars}")
-        key = "rate_done_some" if saved > 1 else "rate_done_one"
-        done = tr.t(key, lang, count=saved, stars="⭐" * stars)
-
-    try:
-        await callback.message.edit_text(
-            f"{tr.t('thanks_title', lang)}\n\n{done}",
-            reply_markup=my_orders_kb(lang),
-        )
-    except Exception as e:
-        logger.debug(f"[REVIEW] xabar yangilanmadi: {e}")
 
 
 # ─── Admin: /panel ─────────────────────────────
@@ -1400,11 +1339,10 @@ async def main():
     # Sozlama hujjatlari hali yo'q bo'lsa, boshlang'ich qiymatlar bilan yaratamiz
     db.ensure_payment_settings()
     db.ensure_delivery_settings()
-    db.ensure_main_categories()
 
     try:
         await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(text="🥟 Katalog", web_app=WebAppInfo(url=MINI_APP_URL))
+            menu_button=MenuButtonWebApp(text="🛒 Katalog", web_app=WebAppInfo(url=MINI_APP_URL))
         )
     except Exception as e:
         logger.warning(f"Menu button: {e}")

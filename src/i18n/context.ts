@@ -12,7 +12,7 @@ export const LANGUAGES: { code: Language; label: TranslationKey; native: string 
 
 export const DICTIONARIES: Record<Language, Record<TranslationKey, string>> = { uz, ru }
 
-export const STORAGE_KEY = 'musaShopLang'
+export const STORAGE_KEY = 'taLang'
 
 /**
  * Profildan (serverdan) oxirgi marta qo'llangan til.
@@ -22,7 +22,7 @@ export const STORAGE_KEY = 'musaShopLang'
  * botdagi yangi tanlov ilovaga ham o'tadi, ilovaning o'zida qilingan tanlov
  * esa har ochilishda qayta yozilib ketmaydi.
  */
-export const SERVER_LANG_KEY = 'musaShopLangSynced'
+export const SERVER_LANG_KEY = 'taLangSynced'
 
 /** Telegram tilidan boshlang'ich tanlov: ruscha bo'lsa ru, aks holda uz. */
 export function detectLanguage(): Language {

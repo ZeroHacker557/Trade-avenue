@@ -472,39 +472,6 @@ def set_user_language(user_id: int, lang: str) -> bool:
         return False
 
 
-def record_start(user_id: int, source: str, username: str | None = None,
-                 first_name: str | None = None) -> bool:
-    """
-    /start — trafik manbasini yozadi (source_tracking.py qoidalari bilan).
-
-    users/{id}: firstSource (faqat birinchi marta) va lastSource;
-    start_events: har bir /start alohida yozuv. Qaytaradi: yangi foydalanuvchimi.
-    Tranzaksiyada — bir vaqtdagi ikki /start firstSource'ni ikki marta yozmaydi.
-    """
-    from source_tracking import source_update
-
-    ref = db.collection("users").document(str(user_id))
-    now = datetime.now(timezone.utc).isoformat()
-
-    @firestore.transactional
-    def _apply(tx):
-        snap = ref.get(transaction=tx)
-        fields, is_new = source_update(snap.to_dict() if snap.exists else None, source, now)
-        if is_new:
-            fields.update({"id": user_id, "username": username, "first_name": first_name})
-        tx.set(ref, fields, merge=True)
-        return is_new
-
-    is_new = _apply(db.transaction())
-    db.collection("start_events").add({
-        "telegramUserId": user_id,
-        "source": source,
-        "isNewUser": is_new,
-        "createdAt": now,
-    })
-    return is_new
-
-
 def save_poll(poll_id: str, options: list, total: int, closed: bool):
     """Kanal so'rovnomasining jonli natijasi — admin panel «Telegram kanal» ko'rsatadi."""
     try:
@@ -913,33 +880,6 @@ def get_delivery_settings() -> dict:
     return {"fee": 0, "freeFrom": 0}
 
 
-# MUSA ning uchta asosiy yo'nalishi — mini app'da bosh sahifadagi yirik
-# kartalar va katalog menyusi shu nomlarga tayanadi
-# (src/config/categories.ts). Bot birinchi ishga tushganda bazada yo'q
-# bo'lsa yaratamiz, aks holda admin mahsulotni ularga biriktira olmaydi.
-MAIN_CATEGORIES = [
-    ("Yarim tayyor mahsulotlar", "chuchvara"),
-    ("Muzqaymoqlar", "muzqaymoq"),
-    ("Siroklar", "sirok"),
-]
-
-
-def ensure_main_categories():
-    """Yetishmayotgan asosiy yo'nalishlarni qo'shadi. Borlariga tegmaydi."""
-    try:
-        existing = {c.get("name", "").strip().lower() for c in get_categories()}
-        for name, icon in MAIN_CATEGORIES:
-            if name.lower() in existing:
-                continue
-            cat_id = str(int(uuid.uuid4().int % 100000))
-            db.collection("categories").document(cat_id).set(
-                {"id": cat_id, "name": name, "icon": icon}
-            )
-            print(f"[OK] Asosiy kategoriya yaratildi: {name}")
-    except Exception as e:
-        print(f"[ERR] ensure_main_categories: {e}")
-
-
 def ensure_delivery_settings():
     try:
         ref = db.collection("settings").document("delivery")
@@ -1266,138 +1206,7 @@ def find_users(query: str, limit: int = 10) -> list:
     return result
 
 
-# ─── Baho (yetkazilgandan keyin bot orqali) ───────────────────
-
 TASHKENT = timezone(timedelta(hours=5))
-
-
-def order_review_items(order: dict) -> list:
-    """Buyurtmadagi mahsulotlar — har biri bir marta (variantlari birlashtirilgan)."""
-    seen, items = set(), []
-    for line in (order or {}).get("products") or []:
-        product = (line or {}).get("product") or {}
-        pid = str(product.get("id") or "")
-        if pid and pid not in seen:
-            seen.add(pid)
-            items.append({"id": pid, "name": product.get("name") or "Mahsulot"})
-    return items
-
-
-def get_order(order_id: str):
-    try:
-        snap = db.collection("orders").document(str(order_id)).get()
-        return snap.to_dict() if snap.exists else None
-    except Exception as e:
-        print(f"[ERR] get_order: {e}")
-        return None
-
-
-def save_bot_review_all(order_id: str, telegram_id: int, stars: int):
-    """
-    BITTA baho — buyurtmadagi hamma mahsulotga.
-
-    Mijoz har mahsulotni alohida baholashga majbur bo'lmasin: bir marta
-    ⭐ bosadi, shu baho barcha mahsulotlarga qo'yiladi. Har mahsulot
-    uchun `save_bot_review` ishlatiladi — tekshiruvlar (buyurtma
-    kimniki, yetkazilganmi) va reyting hisobi o'sha yerda, bir joyda.
-
-    Qaytaradi: (natija, nechta mahsulotga qo'yildi)
-    """
-    items = order_review_items(get_order(order_id) or {})
-    if not items:
-        return "not_found", 0
-
-    saved = 0
-    for index in range(len(items)):
-        outcome, _ = save_bot_review(order_id, telegram_id, index, stars)
-        if outcome != "saved":
-            # Birinchi to'siq (masalan «sizniki emas») — sababni qaytaramiz
-            return outcome, saved
-        saved += 1
-    return "saved", saved
-
-
-def save_bot_review(order_id: str, telegram_id: int, index: int, stars: int):
-    """
-    Mijoz botda ⭐ bosganda — sharhni uning nomidan saqlaydi.
-
-    /api/reviews bilan AYNAN bir xil shakl va qoida: bir mijoz bir
-    mahsulotga bitta sharh, mahsulotdagi `rating` va `reviews` qayta
-    hisoblanadi. Mijoz shu mahsulotga avval baho bergan bo'lsa, yangi
-    sharh yaratilmaydi — bahosi yangilanadi.
-
-    Qaytaradi: ("saved"|"not_yours"|"not_delivered"|"not_found", items)
-    """
-    order_ref = db.collection("orders").document(str(order_id))
-    transaction = db.transaction()
-
-    @firestore.transactional
-    def _save(tx):
-        snap = order_ref.get(transaction=tx)
-        if not snap.exists:
-            return "not_found", []
-        order = snap.to_dict() or {}
-        items = order_review_items(order)
-        if int(order.get("userId") or 0) != int(telegram_id):
-            return "not_yours", items
-        if order.get("status") != "Yetkazildi":
-            return "not_delivered", items
-        if index < 0 or index >= len(items):
-            return "not_found", items
-
-        product_id = items[index]["id"]
-        product_ref = db.collection("products").document(product_id)
-        product_snap = product_ref.get(transaction=tx)
-        user_snap = db.collection("users").document(str(telegram_id)).get(transaction=tx)
-
-        existing = list(
-            db.collection("reviews")
-            .where("productId", "==", int(product_id))
-            .stream(transaction=tx)
-        )
-
-        user = user_snap.to_dict() if user_snap.exists else {}
-        user_name = " ".join(x for x in [user.get("first_name"), user.get("last_name")] if x).strip() or "Foydalanuvchi"
-        now = datetime.now(timezone.utc).isoformat()
-
-        ratings = []
-        mine = None
-        for doc in existing:
-            data = doc.to_dict() or {}
-            if int(data.get("userId") or 0) == int(telegram_id):
-                mine = doc
-                ratings.append(stars)
-            else:
-                try:
-                    ratings.append(float(data.get("rating")))
-                except (TypeError, ValueError):
-                    pass
-
-        if mine is not None:
-            tx.update(mine.reference, {"rating": stars, "date": now, "source": "bot"})
-        else:
-            ratings.append(stars)
-            tx.set(db.collection("reviews").document(), {
-                "productId": int(product_id),
-                "userId": int(telegram_id),
-                "userName": user_name,
-                "rating": stars,
-                "comment": "",
-                "date": now,
-                "source": "bot",
-                "orderId": str(order_id),
-            })
-
-        if product_snap.exists and ratings:
-            average = round(sum(ratings) / len(ratings), 1)
-            tx.update(product_ref, {"rating": average, "reviews": len(ratings)})
-        return "saved", items
-
-    try:
-        return _save(transaction)
-    except Exception as e:
-        print(f"[ERR] save_bot_review: {e}")
-        return "not_found", []
 
 
 # ─── Kuryerning bugungi hisoboti (/bugun) ─────────────────────

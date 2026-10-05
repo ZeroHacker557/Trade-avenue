@@ -119,7 +119,7 @@ export function readSplashAd(raw: unknown): SplashAd {
 
 /* ── Qachon ko'rsatiladi ─────────────────────────────────── */
 
-const SEEN_KEY = 'musaAdSeen'
+const SEEN_KEY = 'taAdSeen'
 
 type Seen = { version: string; day: string }
 

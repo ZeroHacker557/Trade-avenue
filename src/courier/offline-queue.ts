@@ -15,7 +15,7 @@ import { arriveOrder, deliverOrder } from './api'
 
 export type QueuedAction = { kind: 'deliver' | 'arrive'; orderId: string; at: string }
 
-const KEY = 'musa:courier-queue'
+const KEY = 'ta:courier-queue'
 
 export function readQueue(): QueuedAction[] {
   try {
@@ -32,7 +32,7 @@ function writeQueue(list: QueuedAction[]) {
   } catch {
     // Xotira yopiq — navbat faqat shu seansda
   }
-  window.dispatchEvent(new Event('musa:queue'))
+  window.dispatchEvent(new Event('ta:queue'))
 }
 
 export function enqueue(action: Omit<QueuedAction, 'at'>) {

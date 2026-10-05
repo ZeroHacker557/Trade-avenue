@@ -8,7 +8,7 @@
  *   node scripts/create-staff.mjs <email> <parol> [rol] [ism] [telegramId]
  *
  * Masalan:
- *   node scripts/create-staff.mjs musa@example.com "Kuchli-Parol-123" owner "Abubakr" 7203124812
+ *   node scripts/create-staff.mjs admin@tradeavenue.uz "Kuchli-Parol-123" owner "Ism" 123456789
  *
  * Rollar: owner | admin | courier   (ko'rsatilmasa — owner)
  *

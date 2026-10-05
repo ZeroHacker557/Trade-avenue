@@ -27,7 +27,7 @@ const FIRST_IMAGE_WAIT_MS = 3000
 /** index.html dagi ochilish animatsiyasi tugashini kutadi. */
 function splashDone(): Promise<void> {
   if (!document.documentElement.hasAttribute('data-splash')) return Promise.resolve()
-  return new Promise((resolve) => window.addEventListener('musa:splash-done', () => resolve(), { once: true }))
+  return new Promise((resolve) => window.addEventListener('ta:splash-done', () => resolve(), { once: true }))
 }
 
 /** Birinchi slayd rasmi bo'lsa — oldindan yuklab olamiz, qora ekran chaqnamasin. */

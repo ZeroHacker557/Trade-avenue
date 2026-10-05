@@ -64,7 +64,7 @@ export function ReportsPage() {
   const periodText = `${dayLabel(period.from)} — ${dayLabel(addDays(period.to, -1))}`
 
   const exportExcel = () => {
-    const name = `MUSA-hisobot-${dayKey(period.from)}_${dayKey(addDays(period.to, -1))}.xlsx`
+    const name = `TradeAvenue-hisobot-${dayKey(period.from)}_${dayKey(addDays(period.to, -1))}.xlsx`
     downloadWorkbook(name, reportSheets(report))
     show('Hisobot Excel faylga yuklab olindi')
   }
