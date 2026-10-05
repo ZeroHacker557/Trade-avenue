@@ -220,7 +220,6 @@ type RawOrder = OrderDoc & {
   arrivedAt?: string | null
   etaAt?: string | null
   cashStatus?: 'held' | 'pending' | 'settled'
-  courierRating?: { stars?: number; tags?: unknown[]; comment?: string } | null
   problems?: { code: string; at: string }[]
   products?: {
     product?: {
@@ -370,7 +369,7 @@ export async function courierOverview(staff: Staff) {
     db.collection('staff').doc(staff.uid).get(),
   ])
   const staffData = (staffSnap.data() || {}) as {
-    onShift?: boolean; shiftSince?: string; ratingSum?: number; ratingCount?: number
+    onShift?: boolean; shiftSince?: string
   }
 
   const available = ready.docs
@@ -408,24 +407,7 @@ export async function courierOverview(staff: Staff) {
       telegramId: staff.telegramId ?? null,
       // Kechagi smena 00:00 da o'zi yopiladi
       onShift: shiftActive(staffData),
-      rating: {
-        count: Number(staffData.ratingCount) || 0,
-        average: Number(staffData.ratingCount) ? Number(staffData.ratingSum) / Number(staffData.ratingCount) : null,
-      },
     },
-    // Mijozlarning oxirgi izohlari — profilda
-    reviews: delivered
-      .map((o) => ({ number: o.data.orderNumber ? orderLabel(o.data, o.id) : '', at: deliveredAt(o.data), rating: o.data.courierRating }))
-      .filter((r) => r.rating && Number(r.rating.stars) > 0)
-      .sort((a, b) => String(b.at).localeCompare(String(a.at)))
-      .slice(0, 5)
-      .map((r) => ({
-        number: r.number,
-        at: r.at,
-        stars: Number(r.rating!.stars),
-        tags: Array.isArray(r.rating!.tags) ? r.rating!.tags.map(String) : [],
-        comment: String(r.rating!.comment || ''),
-      })),
     cash: await cashSummary(staff.uid, toRows(unsettled)),
     // Telegram jonli joylashuvi yoqilganmi — ilova eslatma ko'rsatadi
     location: await locationStatus(staff.uid),

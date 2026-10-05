@@ -22,8 +22,8 @@ export type AuditSource = 'panel' | 'bot' | 'courier' | 'system'
 /** O'qish amallari — jurnalga tushmaydi. */
 const READ_ONLY = new Set([
   'overview', 'location', 'support.read', 'linko.status', 'linko.ping', 'channel.status',
-  'audit.list', 'backup.list', 'sources.stats', 'template.list', 'campaign.stats', 'schedule.list', 'broadcast.history', 'daily.get', 'daily.preview',
-  'payment.check', 'settings.testGroup',
+  'audit.list', 'backup.list', 'template.list', 'campaign.stats', 'schedule.list', 'broadcast.history', 'daily.get', 'daily.preview',
+  'settings.testGroup',
 ])
 
 /** Panelda ko'rinadigan nomlar. */
@@ -49,8 +49,6 @@ export const AUDIT_LABELS: Record<string, string> = {
   'promotion.delete': 'Aksiya o‘chirildi',
   'ad.save': 'Reklama banneri',
   'home.banners': 'Bosh sahifa bannerlari',
-  'voices.upload': 'Kirish ovozi yuklandi',
-  'voices.save': 'Kirish ovozlari saqlandi',
   'category.save': 'Kategoriya saqlandi',
   'category.delete': 'Kategoriya o‘chirildi',
   'promo.save': 'Promokod saqlandi',
@@ -83,7 +81,6 @@ export const AUDIT_LABELS: Record<string, string> = {
   'cash.confirm': 'Kassa tasdiqlandi',
   'cash.reject': 'Kassa rad etildi',
   'settings.save': 'Sozlamalar saqlandi',
-  'payment.webhook': 'To‘lov webhook ulandi',
   'linko.pull': 'Linko sinxron',
   'linko.link': 'Linko bog‘lash',
   'linko.autoLink': 'Linko avtomatik bog‘lash',
@@ -98,10 +95,10 @@ export const AUDIT_LABELS: Record<string, string> = {
 /** Panel filtri: guruh → amal nomlari yoki prefikslari. */
 export const AUDIT_GROUPS: Record<string, string[]> = {
   orders: ['order.status', 'order.assign', 'order.linkoPush', 'courier.', 'take', 'deliver', 'arrived', 'problem', 'shift', 'cash.'],
-  catalog: ['product.', 'category.', 'section.', 'promotion.', 'promo.', 'ad.', 'home.', 'voices.', 'catalog.', 'order.sort'],
+  catalog: ['product.', 'category.', 'section.', 'promotion.', 'promo.', 'ad.', 'home.', 'catalog.', 'order.sort'],
   messages: ['broadcast.', 'channel.', 'template.', 'schedule.', 'support.', 'daily.'],
   staff: ['staff.', 'session.'],
-  system: ['settings.', 'payment.', 'linko.', 'backup.'],
+  system: ['settings.', 'linko.', 'backup.'],
 }
 
 /** Oldingi holatni o'qish uchun: amal → (kolleksiya, id maydoni). */

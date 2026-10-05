@@ -1,4 +1,4 @@
-import { Gift, Heart, Minus, Plus, ShoppingCart, Star } from 'lucide-react'
+import { Gift, Heart, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { flyToCart } from '../../utils/fly-to-cart'
 import { heartBurst } from '../../utils/burst'
 import { markHero } from '../../utils/view-transition'
@@ -190,12 +190,6 @@ export function ProductCard({ product, onOpen, onAddToCart, cartQtyOf, onChangeQ
               ? t('product.setItems', { n: setCount })
               : [weight, product.pack ? t('product.pack', { count: product.pack }) : ''].filter(Boolean).join(' · ')}
           </p>
-          {!compact && (
-            <p className="product-card-rating">
-              <Star size={14} fill="var(--warning)" style={{ color: 'var(--warning)' }} />
-              {product.rating.toFixed(1)} ({product.reviews})
-            </p>
-          )}
         </div>
       </button>
 

@@ -1,6 +1,6 @@
 import {
-  BarChart3, BrainCircuit, CalendarClock, Volume2, Boxes, Clapperboard, ExternalLink, FileBarChart, Flame, Headset, Layers, LayoutGrid, LogOut, Map as MapIcon, Maximize2, Wallet,
-  DatabaseBackup, History, Images, Link2, Megaphone, Menu, Radio, Minimize2, Moon, PlugZap, Send, Settings, ShoppingBag, Sun, Tag, Users, UserCog, X,
+  BarChart3, CalendarClock, Boxes, Clapperboard, ExternalLink, FileBarChart, Flame, Headset, Layers, LayoutGrid, LogOut, Map as MapIcon, Maximize2, Wallet,
+  DatabaseBackup, History, Images, Megaphone, Menu, Radio, Minimize2, Moon, PlugZap, Send, Settings, ShoppingBag, Sun, Tag, Users, UserCog, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
@@ -27,7 +27,6 @@ const NAV: NavEntry[] = [
   { route: 'orders', label: 'Buyurtmalar', icon: ShoppingBag, min: 'courier' },
   { route: 'map', label: 'Kuryerlar xaritasi', icon: MapIcon, min: 'admin' },
   { route: 'reports', label: 'Hisobotlar', icon: FileBarChart, min: 'admin' },
-  { route: 'sources', label: 'Trafik manbalari', icon: Link2, min: 'admin' },
 
   { route: 'products', label: 'Mahsulotlar', icon: Boxes, min: 'admin', section: 'Katalog' },
   { route: 'categories', label: 'Kategoriyalar', icon: LayoutGrid, min: 'admin' },
@@ -35,7 +34,6 @@ const NAV: NavEntry[] = [
   { route: 'promotions', label: 'Vaqtli aksiyalar', icon: Flame, min: 'admin' },
   { route: 'ads', label: 'Reklama banneri', icon: Clapperboard, min: 'admin' },
   { route: 'banners', label: 'Bosh sahifa bannerlari', icon: Images, min: 'admin' },
-  { route: 'voices', label: 'Kirish ovozlari', icon: Volume2, min: 'admin' },
   { route: 'promocodes', label: 'Promokodlar', icon: Tag, min: 'admin' },
 
   { route: 'customers', label: 'Mijozlar', icon: Users, min: 'admin', section: 'Odamlar' },
@@ -51,9 +49,6 @@ const NAV: NavEntry[] = [
   { route: 'linko-orders', label: 'Linko’ga yuborilganlar', icon: Send, min: 'admin' },
   { route: 'audit', label: 'Harakatlar jurnali', icon: History, min: 'owner' },
   { route: 'backups', label: 'Zaxira nusxalar', icon: DatabaseBackup, min: 'owner' },
-
-  // Eng pastda — butun tizimning galaktika ko'rinishi
-  { route: 'brain', label: 'Miya', icon: BrainCircuit, min: 'admin', special: true },
 ]
 
 const TITLES: Record<Route, string> = {
@@ -66,9 +61,7 @@ const TITLES: Record<Route, string> = {
   promotions: 'Vaqtli aksiyalar',
   ads: 'Reklama banneri',
   banners: 'Bosh sahifa bannerlari',
-  voices: 'Kirish ovozlari',
   reports: 'Hisobotlar',
-  sources: 'Trafik manbalari',
   customers: 'Mijozlar',
   broadcast: 'Ommaviy xabar',
   channel: 'Telegram kanal',
@@ -82,7 +75,6 @@ const TITLES: Record<Route, string> = {
   'linko-orders': 'Linko’ga yuborilgan buyurtmalar',
   audit: 'Harakatlar jurnali',
   backups: 'Zaxira nusxalar',
-  brain: 'Miya',
 }
 
 type Props = {
@@ -230,7 +222,7 @@ export function Shell({ staff, route, onNavigate, newOrders = 0, supportUnread =
 
       <main className="adm-main">
         {/* Miya sahifasi butun maydonni egallaydi — chekka bo'shliqlarsiz */}
-        <div className={'adm-content ' + (route === 'brain' ? 'adm-content--bleed' : '')} key={route}>
+        <div className="adm-content" key={route}>
           {children}
         </div>
       </main>

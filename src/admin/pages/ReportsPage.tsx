@@ -165,13 +165,12 @@ export function ReportsPage() {
               wide
               title="Kuryerlar samaradorligi"
               hint="Vaqt — «Olaman» dan «Yetkazdim» gacha. Vaqtida — mijozga aytilgan vaqtdan kechikmagan (5 daqiqa bardosh bilan)."
-              headers={['Kuryer', 'Yetkazdi', 'O‘rt. vaqt', 'Vaqtida', 'Reyting', 'Muammo', 'Naqd', 'Karta']}
+              headers={['Kuryer', 'Yetkazdi', 'O‘rt. vaqt', 'Vaqtida', 'Muammo', 'Naqd', 'Karta']}
               rows={report.couriers.map((c) => [
                 c.name,
                 String(c.delivered),
                 c.avgMinutes === null ? '—' : `${Math.round(c.avgMinutes)} daq`,
                 c.onTimeRate === null ? '—' : `${Math.round(c.onTimeRate)}%${c.late ? ` · ${c.late} kech` : ''}`,
-                c.rating === null ? '—' : `★ ${c.rating.toFixed(1)} (${c.ratings})`,
                 c.problems ? `⚠️ ${c.problems}` : '—',
                 formatPrice(c.cash),
                 formatPrice(c.card),

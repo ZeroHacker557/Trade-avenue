@@ -2,8 +2,6 @@ import type { OrderStatus } from '../../types/domain'
 
 /** Har holatning o'z rangi — ro'yxatni ko'zdan kechirganda darhol ajraladi. */
 const TONE: Record<OrderStatus, { fg: string; bg: string }> = {
-  // Onlayn to'lov kutilmoqda — hali ishlanmaydi
-  'To‘lov kutilmoqda': { fg: 'var(--warning)', bg: 'var(--warning-soft)' },
   'Yangi': { fg: 'var(--info)', bg: 'var(--info-soft)' },
   'Qabul qilindi': { fg: 'var(--royal)', bg: 'var(--royal-soft)' },
   'Yetkazilmoqda': { fg: 'var(--gold)', bg: 'var(--gold-soft)' },

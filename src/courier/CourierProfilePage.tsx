@@ -1,5 +1,5 @@
 import {
-  Banknote, BadgeCheck, ChevronRight, Clock3, CreditCard, Headset, Languages, Loader2, PackageCheck, Star, Store,
+  Banknote, BadgeCheck, ChevronRight, Clock3, CreditCard, Headset, Languages, Loader2, PackageCheck, Store,
   UserRound, Wallet,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -28,12 +28,6 @@ type Props = {
   /** «Kassaga topshirish» — qo'ldagi hamma naqd. */
   onHandOverCash: () => void
   cashBusy: boolean
-}
-
-/** Mijoz tanlagan teglar (api/_lib/actions/courier-rating.ts bilan bir xil). */
-const TAG_KEYS: Record<string, TranslationKey> = {
-  fast: 'rating.tagFast', polite: 'rating.tagPolite', careful: 'rating.tagCareful',
-  late: 'rating.tagLate', rude: 'rating.tagRude', damaged: 'rating.tagDamaged',
 }
 
 const HANDOVER_KEYS: Record<CashHandover['status'], TranslationKey> = {
@@ -87,12 +81,6 @@ export function CourierProfilePage({
             <span className="crr-badge crr-badge--solid">
               <BadgeCheck size={13} /> {t('courier.badge')}
             </span>
-            {data?.profile.rating.average != null && (
-              <span className="crr-badge crr-badge--rating">
-                <Star size={13} fill="currentColor" /> {data.profile.rating.average.toFixed(1)}
-                <span style={{ opacity: 0.7 }}>({data.profile.rating.count})</span>
-              </span>
-            )}
           </span>
         </span>
       </section>
@@ -169,35 +157,6 @@ export function CourierProfilePage({
           </p>
         )}
       </section>
-
-      {/* Mijozlar fikri */}
-      {data && data.reviews.length > 0 && (
-        <section className="mx-5 mt-6 sm:mx-10">
-          <h2 className="section-title mb-3">{t('courier.reviewsTitle')}</h2>
-          <ul className="crr-reviews">
-            {data.reviews.map((r, i) => (
-              <li key={i}>
-                <span className="flex items-center gap-2">
-                  <span className="crr-stars" aria-label={`${r.stars}/5`}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Star key={n} size={14} fill={n <= r.stars ? 'currentColor' : 'none'} />
-                    ))}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--faint)' }}>{r.number}</span>
-                </span>
-                {r.tags.length > 0 && (
-                  <span className="mt-1.5 flex flex-wrap gap-1">
-                    {r.tags.map((tag) => (
-                      <span key={tag} className="crr-tag">{TAG_KEYS[tag] ? t(TAG_KEYS[tag]) : tag}</span>
-                    ))}
-                  </span>
-                )}
-                {r.comment && <p className="mt-1.5 text-sm" style={{ color: 'var(--ink-2)' }}>«{r.comment}»</p>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {/* Sozlamalar */}
       <section className="mx-5 mt-6 grid gap-2 sm:mx-10">

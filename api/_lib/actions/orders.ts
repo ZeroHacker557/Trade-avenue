@@ -11,15 +11,7 @@ import { courierPhone, shiftActive } from '../courier-staff.js'
 import { orderLabel } from '../order-number.js'
 import { isCashPayment } from '../pay-method.js'
 
-/**
- * Onlayn to'lov kutilayotgan buyurtma. Xodimlarga hali ko'rinmaydi va
- * kuryerga ketmaydi — to'lov o'tgach (webhook) «Yangi» bo'ladi, o'tmasa
- * bekor qilinadi (api/_lib/actions/payments.ts).
- */
-export const AWAITING_PAYMENT = 'To‘lov kutilmoqda'
-
 const STATUSES = [
-  AWAITING_PAYMENT,
   'Yangi',
   'Qabul qilindi',
   'Yetkazilmoqda',
@@ -39,7 +31,6 @@ const COURIER_ALLOWED: Status[] = ['Yetkazilmoqda', 'Yetkazildi']
  */
 const CUSTOMER_TEXT: Record<Lang, Record<Status, (n: string) => string>> = {
   uz: {
-    [AWAITING_PAYMENT]: (n) => `💳 <b>${n}</b> buyurtmangiz to‘lovni kutmoqda.`,
     'Yangi': (n) => `🆕 <b>${n}</b> buyurtmangiz qabul qilindi.`,
     'Qabul qilindi': (n) => `✅ <b>${n}</b> buyurtmangiz tasdiqlandi va tayyorlanmoqda.`,
     'Yetkazilmoqda': (n) => `🚚 <b>${n}</b> buyurtmangiz yo‘lga chiqdi. Kuryer tez orada bog‘lanadi.`,
@@ -48,7 +39,6 @@ const CUSTOMER_TEXT: Record<Lang, Record<Status, (n: string) => string>> = {
     'Rad etildi': (n) => `⛔️ <b>${n}</b> buyurtmangiz rad etildi. Batafsil ma’lumot uchun bog‘laning.`,
   },
   ru: {
-    [AWAITING_PAYMENT]: (n) => `💳 Заказ <b>${n}</b> ожидает оплаты.`,
     'Yangi': (n) => `🆕 Ваш заказ <b>${n}</b> принят.`,
     'Qabul qilindi': (n) => `✅ Ваш заказ <b>${n}</b> подтверждён и готовится.`,
     'Yetkazilmoqda': (n) => `🚚 Ваш заказ <b>${n}</b> в пути. Курьер скоро свяжется с вами.`,
@@ -61,7 +51,6 @@ const CUSTOMER_TEXT: Record<Lang, Record<Status, (n: string) => string>> = {
 /** Ilova ichidagi bildirishnoma — `src/i18n/ru.ts` dagi «status.*» bilan bir xil. */
 const STATUS_NAME: Record<Lang, Record<Status, string>> = {
   uz: {
-    [AWAITING_PAYMENT]: 'To‘lov kutilmoqda',
     'Yangi': 'Yangi',
     'Qabul qilindi': 'Qabul qilindi',
     'Yetkazilmoqda': 'Yetkazilmoqda',
@@ -70,7 +59,6 @@ const STATUS_NAME: Record<Lang, Record<Status, string>> = {
     'Rad etildi': 'Rad etildi',
   },
   ru: {
-    [AWAITING_PAYMENT]: 'Ожидает оплаты',
     'Yangi': 'Новый',
     'Qabul qilindi': 'Принят',
     'Yetkazilmoqda': 'Доставляется',
@@ -133,44 +121,6 @@ export async function sendLiveStatus(
 const NOTIF_STATUS_TITLE: Record<Lang, string> = {
   uz: 'Buyurtma holati',
   ru: 'Статус заказа',
-}
-
-const RATING_TEXT: Record<Lang, {
-  ask: (label: string, scope: string) => string
-  scope: (count: number) => string
-  skip: string
-}> = {
-  uz: {
-    ask: (label, scope) =>
-      `⭐ <b>${label} buyurtmangiz qanday bo‘ldi?</b>\n\n` +
-      scope +
-      '<i>Bahoingiz ilovada boshqa xaridorlarga yordam beradi.</i>',
-    scope: (count) => `Bitta baho — buyurtmadagi ${count} ta mahsulotning hammasiga qo‘yiladi.\n\n`,
-    skip: 'O‘tkazib yuborish',
-  },
-  ru: {
-    ask: (label, scope) =>
-      `⭐ <b>Как вам заказ ${label}?</b>\n\n` +
-      scope +
-      '<i>Ваша оценка поможет другим покупателям в приложении.</i>',
-    scope: (count) => `Одна оценка — сразу для всех ${count} товаров заказа.\n\n`,
-    skip: 'Пропустить',
-  },
-}
-
-const RATE_IN_APP: Record<Lang, { ask: (label: string) => string; button: string }> = {
-  uz: {
-    ask: (label) =>
-      `⭐ <b>${label} buyurtmangiz qanday bo‘ldi?</b>\n\n` +
-      'Kuryer va mahsulotlarni bir oynada baholang — 10 soniya vaqt oladi.',
-    button: '⭐ Baholash',
-  },
-  ru: {
-    ask: (label) =>
-      `⭐ <b>Как вам заказ ${label}?</b>\n\n` +
-      'Оцените курьера и товары в одном окне — это займёт 10 секунд.',
-    button: '⭐ Оценить',
-  },
 }
 
 type ChatMessage = { chatId: string; messageId: number }
@@ -377,7 +327,6 @@ export function orderSummary(id: string, order: OrderDoc): string {
 /** Holat yorliqlari uchun belgi. */
 function statusIcon(status: Status): string {
   const icons: Record<Status, string> = {
-    [AWAITING_PAYMENT]: '💳',
     'Yangi': '🆕',
     'Qabul qilindi': '✅',
     'Yetkazilmoqda': '🚚',
@@ -393,8 +342,6 @@ export async function orderStatus(staff: Staff, body: Record<string, unknown>) {
   const status = body.status as Status
   if (!orderId) throw new Error('orderId kerak')
   if (!STATUSES.includes(status)) throw new Error('Holat noto‘g‘ri')
-  // «To'lov kutilmoqda» ni faqat server qo'yadi (buyurtma yaratilganda)
-  if (status === AWAITING_PAYMENT) throw new Error('Bu holatni qo‘lda qo‘yib bo‘lmaydi')
 
   const db = await adminDb()
   const ref = db.collection('orders').doc(orderId)
@@ -410,11 +357,6 @@ export async function orderStatus(staff: Staff, body: Record<string, unknown>) {
   }
 
   if (order.status === status) return { ok: true, notified: false, unchanged: true }
-
-  // To'lanmagan onlayn buyurtmani faqat bekor qilish yoki rad etish mumkin
-  if (order.status === AWAITING_PAYMENT && status !== 'Bekor qilingan' && status !== 'Rad etildi') {
-    throw new Error('Onlayn to‘lov hali o‘tmagan — buyurtmani tasdiqlab bo‘lmaydi')
-  }
 
   const now = new Date().toISOString()
   const by = { uid: staff.uid, name: staff.name, role: staff.role }
@@ -493,10 +435,6 @@ export async function applyStatusEffects(
     await clearDispatchButtons(orderId, order, options.closeLabel ?? `❌ ${status}`)
     // Buyurtma yopildi — band qilingan miqdor omborga qaytadi
     await restoreStock(orderId)
-    // Onlayn to'langan buyurtma — pul avtomatik qaytmaydi, adminlar qaytarishi kerak
-    if (order.paymentMethod === 'Onlayn' && (order as { paidAt?: string }).paidAt) {
-      await alertRefund(orderId, order)
-    }
   } else if (status === 'Yetkazilmoqda' || status === 'Yetkazildi') {
     // Boshqa kuryerlardagi nusxa «… oldi» ga aylanadi va tugmasi o'chadi
     await updateCourierMessages(orderId, order, status)
@@ -534,9 +472,6 @@ export async function applyStatusEffects(
       lang,
       CUSTOMER_TEXT[lang][status](escapeHtml(label)) + courierLine(order, status, lang),
     )
-
-    // Yetkazildi — baho so'raladi (kuryerli buyurtmada ilovadagi bitta oyna)
-    if (status === 'Yetkazildi') await sendRatingPrompt(orderId, order)
   }
 
   // Linko'dagi buyurtma holati ham yangilanadi (sozlamada yoqilgan bo'lsa)
@@ -553,17 +488,6 @@ export async function applyStatusEffects(
   await bumpOrdersSignal()
 
   return { notified }
-}
-
-/** Onlayn to'langan buyurtma yopildi — pulni WLCM kabineti orqali qaytarish kerak. */
-async function alertRefund(orderId: string, order: OrderDoc): Promise<void> {
-  try {
-    const text = `💸 <b>${escapeHtml(orderLabel(order, orderId))}</b> — onlayn to‘langan buyurtma bekor qilindi.\n` +
-      `Pulni mijozga qaytaring (${Number(order.total) || 0} so‘m, WLCM kabineti orqali).`
-    for (const chatId of await adminTargets()) await sendMessage(chatId, text)
-  } catch (error) {
-    console.error('[orders] qaytarish ogohlantirishi ketmadi:', error)
-  }
 }
 
 /**
@@ -980,57 +904,3 @@ export async function clearDispatchButtons(
 }
 
 
-/**
- * Yetkazilgandan keyin baho so'rovi — birinchi mahsulot uchun.
- *
- * Mijoz ⭐ bosganda bot (bot/bot.py → cb_review) sharhni mijoz nomidan
- * saqlaydi, mahsulot reytingini qayta hisoblaydi va xabarni keyingi
- * mahsulotga almashtiradi. Matn va tugmalar botdagi bilan bir xil.
- *
- * Xato tashlamaydi — baho so'rovi yetmagani holat o'zgarishini buzmasin.
- */
-export async function sendRatingPrompt(orderId: string, order: OrderDoc): Promise<void> {
-  try {
-    if (!order.userId) return
-
-    /*
-     * Kuryer yetkazgan buyurtmada mijoz ilovada ham baho oynasini
-     * ko'radi (kuryer + mahsulotlar — bitta oynada). Ikki joyda ikki xil
-     * so'rov bo'lmasin: bot faqat shu oynani ochadigan tugma yuboradi.
-     */
-    const app = miniAppUrl()
-    if (order.courierId && app) {
-      const lang = await userLang(order.userId)
-      const label = escapeHtml(orderLabel(order, orderId))
-      const text = RATE_IN_APP[lang]
-      await sendRows(order.userId, text.ask(label), [
-        [{ text: text.button, web_app: { url: `${app}/?rate=${encodeURIComponent(orderId)}` } }],
-      ])
-      return
-    }
-    const seen = new Set<string>()
-    const items = (order.products || []).filter((p) => {
-      const id = String((p.product as { id?: unknown } | undefined)?.id ?? '')
-      if (!id || seen.has(id)) return false
-      seen.add(id)
-      return true
-    })
-    if (!items.length) return
-
-    const label = escapeHtml(orderLabel(order, orderId))
-    // Bitta baho — hamma mahsulotga. Har mahsulotni alohida so'rash mijozni
-    // charchatardi va ko'pchilik yarim yo'lda tashlab ketardi.
-    const text = RATING_TEXT[await userLang(order.userId)]
-    const scope = items.length > 1 ? text.scope(items.length) : ''
-    await sendRows(
-      order.userId,
-      text.ask(label, scope),
-      [
-        [1, 2, 3, 4, 5].map((n) => ({ text: `${n}⭐`, callback_data: `rv:${orderId}:all:${n}` })),
-        [{ text: text.skip, callback_data: `rv:${orderId}:all:0` }],
-      ],
-    )
-  } catch (error) {
-    console.error('[orders] baho so‘rovi yuborilmadi:', error)
-  }
-}

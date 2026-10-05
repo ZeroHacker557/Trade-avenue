@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { datedNumber } from '../utils/order-label'
-import { Bell, Bike, ChevronRight, CircleHelp, ClipboardList, Languages, MapPin, Moon, Star, Sun, UserRound } from 'lucide-react'
+import { Bell, Bike, ChevronRight, CircleHelp, ClipboardList, Languages, MapPin, Moon, Sun, UserRound } from 'lucide-react'
 import { formatPrice } from '../data'
 import { formatOrderDate } from '../utils/date'
 import { IconButton } from '../components/ui/IconButton'
@@ -53,7 +53,6 @@ export function ProfilePage({ profile, orders, ordersReady, theme, onToggleTheme
     { icon: UserRound, titleKey: 'profile.personal', subKey: 'profile.personalSub', page: 'profile_edit' },
     { icon: MapPin, titleKey: 'profile.addresses', subKey: 'profile.addressesSub', page: 'addresses' },
     { icon: ClipboardList, titleKey: 'profile.history', subKey: 'profile.historySub', page: 'orders' },
-    { icon: Star, titleKey: 'profile.reviews', subKey: 'profile.reviewsSub', page: 'reviews' },
     {
       icon: Languages,
       titleKey: 'profile.language',

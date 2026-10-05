@@ -2,8 +2,7 @@ import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import { formatPrice } from '../../data'
 import { productThumb } from '../../utils/product-image'
 import { useT } from '../../i18n'
-import { useFreeDelivery } from '../../hooks/use-free-delivery'
-import { FreeDeliveryBar } from './FreeDeliveryBar'
+import { useDeliverySettings } from '../../hooks/use-delivery-settings'
 import type { Product } from '../../types/domain'
 
 type Props = {
@@ -27,7 +26,8 @@ export function CartDrawer({
   onGoToCatalog,
 }: Props) {
   const t = useT()
-  const delivery = useFreeDelivery()
+  const delivery = useDeliverySettings()
+  const minLeft = delivery && delivery.minOrder > 0 ? Math.max(delivery.minOrder - cartTotal, 0) : 0
 
   return (
     <div
@@ -143,13 +143,13 @@ export function CartDrawer({
             </div>
 
             <footer className="border-t p-5" style={{ borderColor: 'var(--line)' }}>
-              {delivery.settings && (
-                <FreeDeliveryBar
-                  subtotal={cartTotal}
-                  fee={delivery.settings.fee}
-                  freeFrom={delivery.settings.freeFrom}
-                  text={delivery.text}
-                />
+              {minLeft > 0 && (
+                <p
+                  className="mb-3 rounded-xl px-3 py-2 text-xs font-semibold"
+                  style={{ background: 'var(--danger-soft, var(--surface-2))', color: 'var(--danger)' }}
+                >
+                  {t('checkout.minOrderLeft', { amount: formatPrice(minLeft) })}
+                </p>
               )}
               <div className="mb-4 flex justify-between text-lg">
                 <span className="font-bold" style={{ color: 'var(--ink)' }}>{t('cart.total')}</span>

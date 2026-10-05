@@ -1,5 +1,5 @@
 import { adminDb } from './firebase-admin.js'
-import { AWAITING_PAYMENT, miniAppUrl } from './actions/orders.js'
+import { miniAppUrl } from './actions/orders.js'
 
 /**
  * Kampaniya (kanal e'loni yoki ommaviy xabar) natijasini o'lchash.
@@ -66,7 +66,7 @@ export type CampaignStats = {
   revenue: number
 }
 
-const LOST = new Set(['Bekor qilingan', 'Rad etildi', AWAITING_PAYMENT])
+const LOST = new Set(['Bekor qilingan', 'Rad etildi'])
 
 /** Bir nechta kampaniyaning bosishlari, buyurtmalari va tushumi. */
 export async function campaignStats(sources: string[]): Promise<Record<string, CampaignStats>> {

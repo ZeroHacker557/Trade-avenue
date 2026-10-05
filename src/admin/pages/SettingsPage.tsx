@@ -1,12 +1,9 @@
-import { Building2, CreditCard, Headphones, Loader2, PlugZap, Send, Smartphone, Truck, Users2, Webhook } from 'lucide-react'
-import { PAY_PROVIDERS } from '../../utils/payment'
+import { Building2, CreditCard, Headphones, Loader2, Send, Truck, Users2 } from 'lucide-react'
 import { useState } from 'react'
 import { apiPost } from '../lib/api'
 import { useSettings, type CompanySettings } from '../lib/live'
 import type { ContactInfo } from '../../config/contact'
 import { useToast } from '../components/Toast'
-import { FreeDeliveryBar } from '../../components/cart/FreeDeliveryBar'
-import { formatPrice } from '../../data'
 
 export function SettingsPage() {
   const settings = useSettings()
@@ -40,14 +37,6 @@ export function SettingsPage() {
           settings={settings.payment}
           busy={busy === 'payment'}
           onSave={save}
-        />
-        <OnlinePaymentCard
-          key={`online:${settings.payment.online}|${settings.payment.onlineTestOnly}|${(settings.payment.onlineProviders || []).join(',')}`}
-          settings={settings.payment}
-          busy={busy === 'online'}
-          onSave={save}
-          onError={(m) => show(m, 'error')}
-          onOk={(m) => show(m)}
         />
         <DeliveryCard
           key={`del:${settings.delivery.fee}|${settings.delivery.freeFrom}|${settings.delivery.minOrder}`}
@@ -191,140 +180,6 @@ function TransferCard({
   )
 }
 
-/**
- * Onlayn to'lov (WLCM: Click, Payme, Uzum, Paylov).
- * Kalitlar serverda (Vercel muhit o'zgaruvchilari) — bu yerda faqat
- * yoqish va mijozga ko'rinadigan usullar. «Tekshirish» kalitlar
- * ishlayotganini ko'rsatadi (kalitlarning o'zi ko'rinmaydi).
- */
-function OnlinePaymentCard({
-  settings, busy, onSave, onError, onOk,
-}: {
-  settings: { online?: boolean; onlineProviders?: string[]; onlineTestOnly?: boolean }
-  busy: boolean
-  onSave: SaveFn
-  onError: (message: string) => void
-  onOk: (message: string) => void
-}) {
-  const [online, setOnline] = useState(settings.online === true)
-  // Yangi sozlashda sinov rejimi yoqilgan holda boshlanadi — xavfsizroq
-  const [testOnly, setTestOnly] = useState(settings.onlineTestOnly ?? true)
-  // Sandbox'da hozircha faqat Payme va Click faol
-  const [providers, setProviders] = useState<string[]>(settings.onlineProviders?.length ? settings.onlineProviders : ['payme', 'click'])
-  const [checking, setChecking] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
-  const [hooking, setHooking] = useState(false)
-
-  /** Webhook manzilini WLCM'ga ro'yxatdan o'tkazish (sir — serverdagi WLCM_WEBHOOK_SECRET). */
-  const connectWebhook = async () => {
-    setHooking(true)
-    try {
-      const result = await apiPost<{ url: string; id: number | null }>('action', { action: 'payment.webhook' })
-      setStatus(`Webhook ulandi: ${result.url}`)
-      onOk('Webhook ulandi')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ulab bo‘lmadi'
-      setStatus(message)
-      onError(message)
-    } finally {
-      setHooking(false)
-    }
-  }
-
-  const toggle = (id: string) =>
-    setProviders((list) => (list.includes(id) ? list.filter((p) => p !== id) : [...list, id]))
-
-  const check = async () => {
-    setChecking(true)
-    setStatus(null)
-    try {
-      const result = await apiPost<{
-        ok: boolean
-        configured: boolean
-        sandbox?: boolean
-        message?: string
-        partner?: { id: number | null; name: string | null; active: boolean | null }
-        activeProviders?: string[]
-        webhookSecret?: boolean
-      }>('action', { action: 'payment.check' })
-      if (!result.configured) {
-        setStatus(result.message || 'Kalitlar sozlanmagan')
-        onError(result.message || 'Kalitlar sozlanmagan')
-        return
-      }
-      const text = `${result.sandbox ? 'Sinov (sandbox)' : 'Ishchi'} · ${result.partner?.name || 'hamkor'} (#${result.partner?.id ?? '—'})` +
-        (result.partner?.active === false ? ' — faol emas' : '') +
-        ` · faol usullar: ${(result.activeProviders || []).join(', ') || '—'}` +
-        (result.webhookSecret ? '' : ' · ⚠️ WLCM_WEBHOOK_SECRET yo‘q')
-      setStatus(text)
-      onOk('Ulanish ishlayapti')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Tekshirib bo‘lmadi'
-      setStatus(message)
-      onError(message)
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  return (
-    <Section
-      title="Onlayn to‘lov"
-      icon={Smartphone}
-      hint="Click, Payme, Uzum — WLCM orqali. Yoqilsa mijoz buyurtmada «Onlayn» ni ko‘radi"
-    >
-      <label className="flex items-center justify-between gap-3 text-sm font-bold">
-        <span>Mijozlarga ko‘rsatish</span>
-        <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} className="size-5" />
-      </label>
-      <label className="mt-2 flex items-center justify-between gap-3 text-sm">
-        <span>
-          <b>Sinov rejimi</b>
-          <span className="block text-xs" style={{ color: 'var(--muted)' }}>Faqat ega va adminlar ko‘radi — mijozlar sezmaydi</span>
-        </span>
-        <input type="checkbox" checked={testOnly} onChange={(e) => setTestOnly(e.target.checked)} className="size-5" />
-      </label>
-
-      <p className="adm-label mt-3">To‘lov usullari</p>
-      <div className="flex flex-wrap gap-2">
-        {PAY_PROVIDERS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={'adm-chip ' + (providers.includes(p.id) ? 'active' : '')}
-            onClick={() => toggle(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {status && (
-        <p className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
-          {status}
-        </p>
-      )}
-
-      <button className="adm-btn adm-btn--ghost mt-4 w-full" onClick={connectWebhook} disabled={hooking}>
-        {hooking ? <Loader2 size={16} className="animate-spin" /> : <Webhook size={16} />} Webhookni ulash
-      </button>
-
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <button className="adm-btn adm-btn--ghost" onClick={check} disabled={checking}>
-          {checking ? <Loader2 size={16} className="animate-spin" /> : <PlugZap size={16} />} Tekshirish
-        </button>
-        <button
-          className="adm-btn adm-btn--primary"
-          onClick={() => onSave('online', { online, onlineProviders: providers, onlineTestOnly: testOnly })}
-          disabled={busy}
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : null} Saqlash
-        </button>
-      </div>
-    </Section>
-  )
-}
-
 function DeliveryCard({
   settings, busy, onSave,
 }: {
@@ -368,9 +223,6 @@ function DeliveryCard({
         onChange={(e) => setMinOrder(e.target.value.replace(/\D/g, ''))}
       />
 
-      {/* Mijoz savatda aynan shuni ko'radi — summani surib tekshirish mumkin */}
-      <DeliveryPreview fee={Number(fee) || 0} freeFrom={Number(freeFrom) || 0} />
-
       <button
         className="adm-btn adm-btn--primary mt-4 w-full"
         onClick={() => onSave('delivery', {
@@ -383,58 +235,6 @@ function DeliveryCard({
         {busy ? <Loader2 size={16} className="animate-spin" /> : null} Saqlash
       </button>
     </Section>
-  )
-}
-
-const PREVIEW_TEXT = {
-  remaining: ['Bepul yetkazishgacha yana', 'qoldi'] as [string, string],
-  reached: 'Yetkazish bepul!',
-  saved: (amount: string) => `${amount} tejaldi`,
-  goal: (amount: string) => `${amount}dan bepul`,
-  fee: (amount: string) => `Yetkazish: ${amount}`,
-}
-
-/**
- * Savatdagi «bepul yetkazishgacha» chizig'ining jonli namunasi.
- * Admin summani surib, mijoz qaysi summada nima ko'rishini tekshiradi.
- */
-function DeliveryPreview({ fee, freeFrom }: { fee: number; freeFrom: number }) {
-  const max = Math.max(freeFrom * 1.3, fee * 4, 100_000)
-  const [cart, setCart] = useState(() => Math.round((freeFrom || 50_000) * 0.6))
-  const subtotal = Math.min(cart, max)
-
-  return (
-    <div className="adm-preview">
-      <p className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
-        Mijoz savatda shunday ko‘radi
-      </p>
-      {freeFrom <= 0 && fee <= 0 ? (
-        <p className="text-sm" style={{ color: 'var(--muted)' }}>Yetkazish bepul — savatda chiziq ko‘rinmaydi.</p>
-      ) : (
-        <FreeDeliveryBar subtotal={subtotal} fee={fee} freeFrom={freeFrom} text={PREVIEW_TEXT} />
-      )}
-      {freeFrom > 0 && (
-        <>
-          <label className="mt-3 flex items-center justify-between text-xs" style={{ color: 'var(--muted)' }} htmlFor="delivery-preview">
-            <span>Savat summasi (sinab ko‘rish)</span>
-            <b style={{ color: 'var(--ink)' }}>{formatPrice(subtotal)}</b>
-          </label>
-          <input
-            id="delivery-preview"
-            type="range"
-            min={0}
-            max={max}
-            step={1000}
-            value={subtotal}
-            onChange={(e) => setCart(Number(e.target.value))}
-          />
-          <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
-            {formatPrice(freeFrom)} va undan yuqori buyurtmada yetkazish bepul, kamida esa {formatPrice(fee)} qo‘shiladi.
-            Promokod chegirmasidan keyingi summa hisoblanadi.
-          </p>
-        </>
-      )}
-    </div>
   )
 }
 

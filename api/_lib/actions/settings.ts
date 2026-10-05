@@ -1,8 +1,6 @@
 import { adminDb } from '../firebase-admin.js'
 import { sendMessage } from '../telegram.js'
 import type { Staff } from '../admin-auth.js'
-import { WLCM_PROVIDERS, activeProviders, registerWebhook, wlcmConfigured, wlcmMe } from '../wlcm.js'
-import { webhookUrl } from './payments.js'
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -11,40 +9,6 @@ function text(value: unknown): string {
 function num(value: unknown): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0
-}
-
-/**
- * WLCM kalitlari ishlayaptimi — imzolangan `me` so'rovi.
- * Kalitlarning o'zi qaytarilmaydi, faqat hamkor nomi va holati.
- */
-export async function paymentCheck(actor: Staff) {
-  if (actor.role !== 'owner') throw new Error('Faqat ega tekshira oladi')
-  if (!wlcmConfigured()) return { ok: false, configured: false, message: 'WLCM kalitlari serverda sozlanmagan' }
-  const active = await activeProviders().catch(() => [] as string[])
-  const me = (await wlcmMe()) as { id?: number; name?: string; is_active?: boolean } | null
-  const base = String(process.env.WLCM_BASE_URL || '')
-  return {
-    ok: true,
-    configured: true,
-    sandbox: base.includes('sandbox') || base.includes('apidev'),
-    partner: { id: me?.id ?? null, name: me?.name ?? null, active: me?.is_active ?? null },
-    activeProviders: active,
-    webhookSecret: Boolean(process.env.WLCM_WEBHOOK_SECRET),
-  }
-}
-
-/**
- * Webhook manzilini WLCM'ga ro'yxatdan o'tkazadi. Imzo siri — WLCM_WEBHOOK_SECRET
- * (serverda); WLCM webhookni shu sir bilan imzolaydi, biz shu bilan tekshiramiz.
- */
-export async function paymentWebhook(actor: Staff) {
-  if (actor.role !== 'owner') throw new Error('Faqat ega ulay oladi')
-  if (!wlcmConfigured()) throw new Error('WLCM kalitlari serverda sozlanmagan')
-  const secret = String(process.env.WLCM_WEBHOOK_SECRET || '')
-  if (secret.length < 24) throw new Error('WLCM_WEBHOOK_SECRET serverda sozlanmagan (kamida 24 belgi)')
-  const url = webhookUrl()
-  const hook = await registerWebhook(url, secret)
-  return { ok: true, url, id: hook?.id ?? null }
 }
 
 /**
@@ -73,45 +37,6 @@ export async function settingsSave(actor: Staff, body: Record<string, unknown>) 
       updatedAt: new Date().toISOString(),
     }, { merge: true })
     return { ok: true }
-  }
-
-  // Onlayn to'lov (WLCM): yoqish va mijozga ko'rinadigan usullar
-  if (section === 'online') {
-    const online = body.online === true
-    const onlineProviders = (Array.isArray(body.onlineProviders) ? body.onlineProviders : [])
-      .map((p) => String(p).toLowerCase())
-      .filter((p) => (WLCM_PROVIDERS as readonly string[]).includes(p))
-    if (online && !wlcmConfigured()) throw new Error('WLCM kalitlari serverda sozlanmagan — avval ularni kiriting')
-    if (online && !onlineProviders.length) throw new Error('Kamida bitta to‘lov usulini tanlang')
-    if (online) {
-      // WLCM'da o'chiq usulni yoqib bo'lmaydi — mijoz tanlasa to'lov yaratilmasdi
-      const active = await activeProviders().catch(() => null)
-      const off = active ? onlineProviders.filter((p) => !active.includes(p)) : []
-      if (off.length) throw new Error(`Bu usullar hozir WLCM'da faol emas: ${off.join(', ')}`)
-    }
-
-    /*
-     * Sinov rejimi: onlayn to'lovni faqat ega va adminlar ko'radi (sandbox
-     * kalitlari bilan jonli saytda sinash uchun — mijozlar sezmaydi).
-     * Ularning Telegram ID'lari shu yerda yig'iladi: mijoz ilovasi staff
-     * to'plamini o'qiy olmaydi, sozlama hujjatini esa o'qiydi.
-     */
-    const onlineTestOnly = body.onlineTestOnly === true
-    let onlineTesters: number[] = []
-    if (onlineTestOnly) {
-      const staff = await db.collection('staff').where('role', 'in', ['owner', 'admin']).get()
-      onlineTesters = staff.docs
-        .map((doc) => doc.data() as { telegramId?: number; active?: boolean })
-        .filter((s) => s.active !== false && Number(s.telegramId) > 0)
-        .map((s) => Number(s.telegramId))
-      if (online && !onlineTesters.length) throw new Error('Sinov rejimi uchun Telegram ID si bor admin kerak')
-    }
-
-    await db.collection('settings').doc('payment').set(
-      { online, onlineProviders, onlineTestOnly, onlineTesters },
-      { merge: true },
-    )
-    return { ok: true, testers: onlineTesters.length }
   }
 
   // Kompaniya rekvizitlari — nakladnoy va marshrut varaqasida chiqadi

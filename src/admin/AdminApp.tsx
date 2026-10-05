@@ -14,7 +14,6 @@ import { OrdersPage } from './pages/OrdersPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { SectionsPage } from './pages/SectionsPage'
-import { BrainPage } from './pages/BrainPage'
 import { PromotionsPage } from './pages/PromotionsPage'
 import { AdsPage } from './pages/AdsPage'
 import { LinkoPage } from './pages/LinkoPage'
@@ -25,9 +24,7 @@ import { CustomersPage } from './pages/CustomersPage'
 import { BroadcastPage } from './pages/BroadcastPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { HomeBannersPage } from './pages/HomeBannersPage'
-import { SourcesPage } from './pages/SourcesPage'
 import { DailyPicksPage } from './pages/DailyPicksPage'
-import { VoicesPage } from './pages/VoicesPage'
 import { AuditPage } from './pages/AuditPage'
 import { BackupPage } from './pages/BackupPage'
 import { SupportPage } from './pages/SupportPage'
@@ -251,8 +248,6 @@ function AdminPanel({
       {route === 'channel' && (can(staff.role, 'admin') ? <ChannelPage /> : <NoAccess />)}
       {route === 'daily' && (can(staff.role, 'admin') ? <DailyPicksPage /> : <NoAccess />)}
       {route === 'banners' && (can(staff.role, 'admin') ? <HomeBannersPage /> : <NoAccess />)}
-      {route === 'voices' && (can(staff.role, 'admin') ? <VoicesPage /> : <NoAccess />)}
-      {route === 'sources' && (can(staff.role, 'admin') ? <SourcesPage /> : <NoAccess />)}
       {route === 'audit' && (staff.role === 'owner' ? <AuditPage /> : <NoAccess />)}
       {route === 'backups' && (staff.role === 'owner' ? <BackupPage /> : <NoAccess />)}
       {route === 'support' && (can(staff.role, 'admin') ? <SupportPage focusId={param} navigate={navigate} /> : <NoAccess />)}
@@ -263,7 +258,6 @@ function AdminPanel({
       {route === 'settings' && (staff.role === 'owner' ? <SettingsPage /> : <NoAccess />)}
 
       {/* Ega va adminlar */}
-      {route === 'brain' && (can(staff.role, 'admin') ? <BrainPage staff={staff} /> : <NoAccess />)}
     </Shell>
   )
 }

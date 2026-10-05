@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FreeDeliveryBar } from '../components/cart/FreeDeliveryBar'
-import { useFreeDelivery } from '../hooks/use-free-delivery'
 import { productThumb } from '../utils/product-image'
 import {
-  ArrowLeft, Banknote, Check, Copy, CreditCard, Loader2, Lock, MapPin, Pencil,
+  ArrowLeft, Banknote, Check, Copy, CreditCard, Loader2, MapPin, Pencil,
   MessageSquare, Phone, Send, ShoppingBag, Tag, User, UserRound,
 } from 'lucide-react'
 import { formatPrice } from '../data'
 import { hapticFeedback } from '../utils/telegram'
-import { playSound, preloadSound } from '../utils/sound'
 import { getPaymentSettings, getDeliverySettings } from '../lib/firebase'
 import { apiErrorText } from '../utils/api-error'
 import { apiPost } from '../lib/api'
@@ -17,8 +14,6 @@ import type { Address, AppPage, DeliverySettings, OrderForm, PaymentSettings, Pr
 import { PageTitle } from '../components/layout/PageTitle'
 import { AddressConfirmSheet } from '../components/checkout/AddressConfirmSheet'
 import { ReceiptSheet, type ReceiptUpload } from '../components/checkout/ReceiptSheet'
-import { PAY_TILES, cardTileOf, providerLabel, type CardDraft } from '../utils/payment'
-import { PayLogo } from '../components/payment/PayLogo'
 
 /*
  * Sahifa har ochilganda qayta yaratiladi, shuning uchun «oldin qaysi
@@ -33,8 +28,6 @@ let pickedAddressId: string | null = null
  * DEV: `?addrDemo` — Telegram'siz brauzerda profil yuklanmaydi; tasdiqlash
  * oynasini ko'rish uchun namunaviy manzillar. Production'da `null`.
  */
-/** DEV: `?payDemo` — onlayn to'lov tanlovini sozlamasiz ko'rish. Production'da `false`. */
-const PAY_DEMO = import.meta.env.DEV && new URLSearchParams(location.search).has('payDemo')
 
 const DEMO_PROFILE: UserProfile | null =
   import.meta.env.DEV && new URLSearchParams(location.search).has('addrDemo')
@@ -61,8 +54,8 @@ type Props = {
   cartTotal: number
   orderForm: OrderForm
   onUpdateForm: (field: keyof OrderForm, value: unknown) => void
-  /** Karta bilan to'lovda — karta ma'lumoti (faqat shu so'rov uchun). */
-  onSubmit: (card?: CardDraft, receipt?: ReceiptUpload) => Promise<boolean>
+  /** Karta (o'tkazma) bilan to'lovda — chek rasmi. */
+  onSubmit: (receipt?: ReceiptUpload) => Promise<boolean>
   isSubmitting: boolean
   onBack: () => void
   onNavigate: (page: AppPage) => void
@@ -73,11 +66,6 @@ type Props = {
   /** Yangi manzil — joylashuv darhol so'raladi. */
   onAddAddress: () => void
 }
-
-/** Ovozli eslatmalar: ism / telefon / manzil kiritilmagan bo'lsa. */
-const NAME_VOICE = '/sounds/name-required.mp3'
-const PHONE_VOICE = '/sounds/phone-required.mp3'
-const ADDRESS_VOICE = '/sounds/address-required.mp3'
 
 export function CheckoutPage({
   cartProducts, cartTotal, orderForm, onUpdateForm, onSubmit, isSubmitting, onBack, onNavigate,
@@ -95,7 +83,6 @@ export function CheckoutPage({
   const [promoError, setPromoError] = useState('')
   const [payment, setPayment] = useState<PaymentSettings | null>(null)
   const [delivery, setDelivery] = useState<DeliverySettings | null>(null)
-  const { text: freeText } = useFreeDelivery()
   /** «Manzilingizni tasdiqlaysizmi?» — sahifaga har kirganda bir marta. */
   const [confirming, setConfirming] = useState(true)
 
@@ -104,7 +91,7 @@ export function CheckoutPage({
 
   useEffect(() => {
     let alive = true
-    getPaymentSettings().then((s) => alive && setPayment(PAY_DEMO ? { ...s, online: true, onlineProviders: ['payme', 'click', 'card'] } : s))
+    getPaymentSettings().then((s) => alive && setPayment(s))
     getDeliverySettings().then((s) => alive && setDelivery(s))
     return () => { alive = false }
   }, [])
@@ -202,48 +189,6 @@ export function CheckoutPage({
   const selectedAddressId = addresses.find((a) => a.address === orderForm.address)?.id ?? null
 
   /*
-   * Onlayn to'lov (WLCM) — admin yoqqan bo'lsa. Mavjud usullar admin
-   * tanlagani va ilovaning ro'yxati kesishmasi, ilova tartibida.
-   */
-  // Sinov rejimida — faqat ega/adminlar (server ham tekshiradi)
-  const onlineAllowed = Boolean(payment?.online)
-    && (!payment?.onlineTestOnly || (profile ? payment.onlineTesters?.includes(Number(profile.id)) === true : false))
-  /** Onlayn to'lov tugmalari (Payme, Click, Uzcard, Humo…) — admin yoqqan usullar bo'yicha. */
-  const payTiles = useMemo(
-    () => (onlineAllowed ? PAY_TILES.filter((tile) => payment?.onlineProviders?.includes(tile.provider)) : []),
-    [payment, onlineAllowed],
-  )
-  const onlineOn = payTiles.length > 0
-  const activeTile = orderForm.paymentMethod === 'Onlayn'
-    ? payTiles.find((tile) => tile.id === (orderForm.paymentTile ?? orderForm.paymentProvider)) ?? null
-    : null
-
-  /*
-   * Karta formasi (Uzcard/Humo). Ma'lumot faqat shu sahifaning xotirasida —
-   * store'ga ham, brauzer xotirasiga ham yozilmaydi.
-   */
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardExpiry, setCardExpiry] = useState('')
-  const cardDigits = cardNumber.replace(/\D/g, '')
-  const expiryDigits = cardExpiry.replace(/\D/g, '')
-  const expiryOk = (() => {
-    if (expiryDigits.length !== 4) return false
-    const month = Number(expiryDigits.slice(0, 2))
-    const year = 2000 + Number(expiryDigits.slice(2))
-    if (month < 1 || month > 12) return false
-    const now = new Date()
-    return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1)
-  })()
-  const cardOk = cardDigits.length === 16 && expiryOk
-
-  const chooseTile = (tile: (typeof PAY_TILES)[number]) => {
-    hapticFeedback('light')
-    onUpdateForm('paymentMethod', 'Onlayn')
-    onUpdateForm('paymentProvider', tile.provider)
-    onUpdateForm('paymentTile', tile.id)
-  }
-
-  /*
    * Karta (o'tkazma): kartaga pul o'tkaziladi, «Buyurtma berish» da chek
    * yuklash oynasi ochiladi — buyurtma chek bilan birga yaratiladi.
    * Karta raqami sozlanmagan bo'lsa bu usul ko'rinmaydi.
@@ -263,44 +208,27 @@ export function CheckoutPage({
     if (payment !== null && !transferOn && orderForm.paymentMethod === 'Karta') onUpdateForm('paymentMethod', 'Naqd')
   }, [payment, transferOn, orderForm.paymentMethod, onUpdateForm])
 
-  // Onlayn tanlangan-u o'chirilgan (yoki tugma yo'q) bo'lsa — naqdga qaytamiz
-  useEffect(() => {
-    if (payment === null || orderForm.paymentMethod !== 'Onlayn') return
-    if (!onlineOn) onUpdateForm('paymentMethod', 'Naqd')
-    else if (!activeTile) {
-      onUpdateForm('paymentProvider', payTiles[0].provider)
-      onUpdateForm('paymentTile', payTiles[0].id)
-    }
-  }, [payment, onlineOn, activeTile, payTiles, orderForm.paymentMethod, onUpdateForm])
-
   // Manzil — faqat saqlangan manzillardan biri haqiqatan tanlangan bo'lsa (matnning o'zi yetmaydi)
   const addressOk = selectedAddressId !== null && Boolean(orderForm.address.trim())
   const isValid = Boolean(orderForm.name.trim() && orderForm.phone.trim() && addressOk)
-  const canSubmit = isValid && !isSubmitting && !belowMin && (!activeTile?.card || cardOk)
+  const canSubmit = isValid && !isSubmitting && !belowMin
 
   /*
    * Tugma doim bosiladi: to'ldirilmagan joy bo'lsa — o'sha maydonga
-   * aylantiriladi, qizil bilan belgilanadi; telefon yo'q bo'lsa ovozli eslatma.
+   * aylantiriladi, qizil bilan belgilanadi.
    */
-  type Missing = 'name' | 'phone' | 'address' | 'card'
+  type Missing = 'name' | 'phone' | 'address'
   const [missing, setMissing] = useState<Missing[]>([])
   /** Har bosishda silkinish animatsiyasi qayta boshlansin. */
   const [shake, setShake] = useState(0)
   const nameRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
   const addressRef = useRef<HTMLDivElement>(null)
-  const cardRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    preloadSound(NAME_VOICE)
-    preloadSound(PHONE_VOICE)
-    preloadSound(ADDRESS_VOICE)
-  }, [])
   // Maydon to'ldirilishi bilan qizil belgisi ketadi
   const stillMissing = missing.filter((key) =>
     key === 'name' ? !orderForm.name.trim()
       : key === 'phone' ? !orderForm.phone.trim()
-        : key === 'address' ? !addressOk
-          : Boolean(activeTile?.card) && !cardOk)
+        : !addressOk)
 
   /** To'ldirilmaganini ko'rsatadi. `true` — hammasi joyida. */
   const checkForm = (): boolean => {
@@ -308,19 +236,13 @@ export function CheckoutPage({
     if (!orderForm.name.trim()) list.push('name')
     if (!orderForm.phone.trim()) list.push('phone')
     if (!addressOk) list.push('address')
-    if (activeTile?.card && !cardOk) list.push('card')
     setMissing(list)
     if (!list.length) return true
 
     hapticFeedback('heavy')
     setShake((n) => n + 1)
-    // Ovoz — bosish ichida (telefon brauzeri bloklamaydi). Ikkalasi bo'sh bo'lsa —
-    // faqat birinchisi (sahifa o'sha joyga aylanadi), ovozlar ustma-ust tushmasin
-    if (list.includes('name')) playSound(NAME_VOICE)
-    else if (list.includes('phone')) playSound(PHONE_VOICE)
-    else if (list.includes('address')) playSound(ADDRESS_VOICE)
     const first = list[0]
-    const target = first === 'name' ? nameRef.current : first === 'phone' ? phoneRef.current : first === 'card' ? cardRef.current : addressRef.current
+    const target = first === 'name' ? nameRef.current : first === 'phone' ? phoneRef.current : addressRef.current
     try {
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       if (target instanceof HTMLInputElement) target.focus({ preventScroll: true })
@@ -446,18 +368,6 @@ export function CheckoutPage({
                   <span className="font-bold" style={{ color: 'var(--ink)' }}>{formatPrice(deliveryFee)}</span>
                 )}
               </div>
-
-              {/* Promokoddan keyingi summa bo'yicha — server ham shunday hisoblaydi */}
-              {delivery !== null && delivery.freeFrom > 0 && (
-                <div className="pt-1">
-                  <FreeDeliveryBar
-                    subtotal={discountedSubtotal}
-                    fee={delivery.fee}
-                    freeFrom={delivery.freeFrom}
-                    text={freeText}
-                  />
-                </div>
-              )}
 
               {belowMin && (
                 <p
@@ -683,25 +593,8 @@ export function CheckoutPage({
         <section className="mt-6">
           <h3 className="mb-4 font-bold" style={{ color: 'var(--ink)' }}>{t('checkout.paymentMethod')}</h3>
 
-          {/* To'lov usullari — har biri o'z logotipi bilan; naqd — oxirida keng */}
+          {/* To'lov usullari: karta (o'tkazma, chek bilan) va naqd */}
           <div className="pay-tiles">
-            {payTiles.map((tile) => {
-              const on = activeTile?.id === tile.id
-              return (
-                <button
-                  key={tile.id}
-                  type="button"
-                  className={'pay-tile ' + (on ? 'is-on' : '')}
-                  onClick={() => chooseTile(tile)}
-                  aria-pressed={on}
-                  aria-label={tile.label}
-                >
-                  <span className="pay-tile__logo"><PayLogo id={tile.id} /></span>
-                  <span className="pay-tile__name">{tile.card ? t('checkout.cardTile') : tile.label}</span>
-                  {on && <span className="pay-tile__check"><Check size={12} strokeWidth={3.2} /></span>}
-                </button>
-              )
-            })}
             {transferOn && (
               <button
                 type="button"
@@ -734,51 +627,6 @@ export function CheckoutPage({
             </button>
           </div>
 
-          {/* Uzcard / Humo — karta shu yerning o'zida */}
-          {activeTile?.card && (
-            <div className="card-form" style={{ animation: 'fadeInUp 0.25s ease' }}>
-              <label className="field-label" htmlFor="card-number">{t('card.number')}</label>
-              <div className="field">
-                <CreditCard size={19} className="shrink-0" style={{ color: 'var(--faint)' }} />
-                <input
-                  ref={cardRef}
-                  id="card-number"
-                  value={cardNumber}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 16)
-                    setCardNumber(digits.replace(/(\d{4})(?=\d)/g, '$1 '))
-                    // Raqamdan karta turi — tugma o'zi almashadi (9860 — Humo)
-                    const kind = cardTileOf(digits)
-                    const tile = kind ? payTiles.find((x) => x.id === kind) : undefined
-                    if (tile && tile.id !== activeTile.id) chooseTile(tile)
-                  }}
-                  inputMode="numeric"
-                  autoComplete="cc-number"
-                  placeholder={activeTile.id === 'humo' ? '9860 0000 0000 0000' : '8600 0000 0000 0000'}
-                  className="font-mono text-sm tracking-wider"
-                />
-              </div>
-              <label className="field-label mt-3" htmlFor="card-expiry">{t('card.expiry')}</label>
-              <div className="field max-w-[160px]">
-                <input
-                  id="card-expiry"
-                  value={cardExpiry}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
-                    setCardExpiry(digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits)
-                  }}
-                  inputMode="numeric"
-                  autoComplete="cc-exp"
-                  placeholder={t('card.expiryHint')}
-                  className="font-mono text-sm tracking-wider"
-                />
-              </div>
-              {expiryDigits.length === 4 && !expiryOk && (
-                <p className="mt-1 text-[11px] font-bold" style={{ color: 'var(--danger)' }}>{t('card.expiryBad')}</p>
-              )}
-            </div>
-          )}
-
           {orderForm.paymentMethod === 'Karta' && payment?.cardNumber && (
             <div className="transfer-card" style={{ animation: 'fadeInUp 0.25s ease' }}>
               <p className="transfer-card__title">{t('checkout.cardDetails')}</p>
@@ -801,13 +649,6 @@ export function CheckoutPage({
             </div>
           )}
 
-          {activeTile && (
-            <p className="pay-providers__note" style={{ animation: 'fadeInUp 0.25s ease' }}>
-              <Lock size={12} />
-              {activeTile.card ? t('checkout.cardPayNote', { card: activeTile.label }) : t('checkout.onlineNote')}
-            </p>
-          )}
-
         </section>
 
         <button
@@ -821,22 +662,13 @@ export function CheckoutPage({
               setReceiptOpen(true)
               return
             }
-            const ok = await onSubmit(activeTile?.card ? { number: cardDigits, expiry: expiryDigits } : undefined)
-            // Karta ma'lumoti ekranda qolmasin
-            if (ok) { setCardNumber(''); setCardExpiry('') }
+            await onSubmit()
           }}
           disabled={isSubmitting || belowMin}
           className="btn-primary mt-8 w-full py-4"
         >
           {isSubmitting ? (
             <><Loader2 size={20} className="animate-spin" />{t('checkout.submitting')}</>
-          ) : activeTile ? (
-            <>
-              <Lock size={19} />
-              {activeTile.card
-                ? t('checkout.payCard', { card: activeTile.label })
-                : t('checkout.payNow', { provider: providerLabel(activeTile.provider) })}
-            </>
           ) : orderForm.paymentMethod === 'Karta' ? (
             <><Send size={20} />{t('checkout.submitTransfer')}</>
           ) : (
@@ -859,7 +691,7 @@ export function CheckoutPage({
           cardNumber={payment.cardNumber}
           cardOwner={payment.cardOwner}
           busy={isSubmitting}
-          onSubmit={(receipt) => onSubmit(undefined, receipt)}
+          onSubmit={(receipt) => onSubmit(receipt)}
           onClose={() => setReceiptOpen(false)}
         />
       )}

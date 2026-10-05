@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app'
 import { DEFAULT_CONTACT, readContact, type ContactInfo } from '../config/contact'
-import { readVoices, type VoiceItem } from '../config/voices'
 import { collection, onSnapshot, query, where, doc, updateDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore'
 import { createFirestore } from '../config/firestore-cache'
 import { getStorage } from 'firebase/storage'
@@ -171,10 +170,6 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
       cardNumber: String(data.cardNumber || PAYMENT_FALLBACK.cardNumber),
       cardOwner: String(data.cardOwner || PAYMENT_FALLBACK.cardOwner),
       transfer: data.transfer !== false,
-      online: data.online === true,
-      onlineProviders: Array.isArray(data.onlineProviders) ? data.onlineProviders.map(String) : [],
-      onlineTestOnly: data.onlineTestOnly === true,
-      onlineTesters: Array.isArray(data.onlineTesters) ? data.onlineTesters.map(Number) : [],
     }
   } catch (error) {
     console.error("[Firebase] To'lov sozlamalarini o'qib bo'lmadi:", error)
@@ -254,15 +249,6 @@ export function subscribeToContact(callback: (contact: ContactInfo) => void) {
   )
 }
 
-/** Kirish ovozlari (admin → «Kirish ovozlari»). Hujjat yo'q yoki o'qib bo'lmadi — null (standart ovoz). */
-export function subscribeToVoices(callback: (items: VoiceItem[] | null) => void) {
-  return onSnapshot(
-    doc(db, 'settings', 'voices'),
-    (snap) => callback(snap.exists() ? readVoices(snap.data()?.items) : null),
-    () => callback(null),
-  )
-}
-
 export function subscribeToPromotions(callback: (promotions: Promotion[]) => void) {
   return onSnapshot(
     query(collection(db, 'promotions'), where('active', '==', true)),
@@ -328,45 +314,6 @@ export function subscribeToUserOrders(userId: number, callback: (orders: Order[]
     // Xato bo'lsa ham javob beramiz: aks holda sahifa skeletda qotib
     // qolardi. Bo'sh ro'yxat — «buyurtma yo'q» holati.
     callback([])
-  })
-}
-
-// ── REVIEWS ──────────────────────────────────────────────────
-import type { Review } from '../types/domain'
-
-// Sharhni /api/reviews yaratadi — mijoz to'g'ridan-to'g'ri yoza olmaydi.
-
-export function subscribeToProductReviews(productId: number, callback: (reviews: Review[]) => void) {
-  const reviewsRef = collection(db, 'reviews')
-  const q = query(reviewsRef, where('productId', '==', productId))
-  
-  return onSnapshot(q, (snapshot) => {
-    const reviews: Review[] = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    } as Review))
-    // sort by newest
-    reviews.sort((a, b) => parseDate(b.date) - parseDate(a.date))
-    callback(reviews)
-  }, (error) => {
-    console.error("Error fetching product reviews:", error)
-  })
-}
-
-export function subscribeToUserReviews(userId: number, callback: (reviews: Review[]) => void) {
-  const reviewsRef = collection(db, 'reviews')
-  const q = query(reviewsRef, where('userId', '==', userId))
-  
-  return onSnapshot(q, (snapshot) => {
-    const reviews: Review[] = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    } as Review))
-    // sort by newest
-    reviews.sort((a, b) => parseDate(b.date) - parseDate(a.date))
-    callback(reviews)
-  }, (error) => {
-    console.error("Error fetching user reviews:", error)
   })
 }
 

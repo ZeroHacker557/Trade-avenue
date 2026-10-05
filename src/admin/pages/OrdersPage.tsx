@@ -20,7 +20,6 @@ import { usePrintDoc } from '../lib/print'
 import { OrderTimeline } from '../components/OrderTimeline'
 import { OrdersBoard } from '../components/OrdersBoard'
 import { bundleText } from '../../utils/bundle'
-import { AWAITING_PAYMENT, providerLabel } from '../../utils/payment'
 
 type View = 'list' | 'board'
 const VIEW_KEY = 'musa-admin:orders-view'
@@ -42,11 +41,7 @@ const ALL_STATUSES: OrderStatus[] = [
   'Rad etildi',
 ]
 
-/** Filtr chiplari: to'lov kutilayotganlar ham ko'rinsin (holatini qo'lda qo'yib bo'lmaydi). */
-const FILTER_STATUSES: OrderStatus[] = [AWAITING_PAYMENT, ...ALL_STATUSES]
-
-/** To'lanmagan onlayn buyurtmani faqat yopish mumkin — server ham tekshiradi. */
-const AWAITING_ALLOWED: OrderStatus[] = ['Bekor qilingan', 'Rad etildi']
+const FILTER_STATUSES: OrderStatus[] = ALL_STATUSES
 
 /** Kuryer faqat shu ikkitasini qo'ya oladi — server ham buni tekshiradi. */
 const COURIER_STATUSES: OrderStatus[] = ['Yetkazilmoqda', 'Yetkazildi']
@@ -278,8 +273,6 @@ export function OrdersPage({ staff, focusId }: { staff: Staff; focusId?: string 
       {view === 'list' && (
       <div className="scrollbar-none mt-3 flex gap-2 overflow-x-auto pb-1">
         {(['all', ...FILTER_STATUSES] as Filter[]).map((key) => (
-          // Bo'sh «To'lov kutilmoqda» chipi ko'rinmasin — onlayn to'lov kam
-          key === AWAITING_PAYMENT && !counts.get(key) ? null : (
           <button
             key={key}
             onClick={() => setFilter(key)}
@@ -293,7 +286,6 @@ export function OrdersPage({ staff, focusId }: { staff: Staff; focusId?: string 
             {key === 'all' ? 'Barchasi' : key}
             <span className="ml-1.5 opacity-60">{counts.get(key) ?? 0}</span>
           </button>
-          )
         ))}
       </div>
       )}
@@ -398,7 +390,7 @@ export function OrdersPage({ staff, focusId }: { staff: Staff; focusId?: string 
       {open && (
         <OrderDrawer
           order={open}
-          allowed={open.status === AWAITING_PAYMENT ? AWAITING_ALLOWED.filter((s) => allowed.includes(s)) : allowed}
+          allowed={allowed}
           busy={busyId === open.id}
           canAssign={can(staff.role, 'admin')}
           couriers={couriers}
@@ -529,7 +521,7 @@ function OrderDrawer({
           </section>
 
           {/* Yetkazish — kuryer ma'lumotlari */}
-          {(order.courierName || order.problems?.length || order.courierRating) && (
+          {(order.courierName || order.problems?.length) && (
             <section className="adm-card p-3.5">
               <p className="text-sm font-extrabold">Yetkazish{order.courierName ? ` — ${order.courierName}` : ''}</p>
               <div className="mt-2 grid gap-1 text-sm" style={{ color: 'var(--muted)' }}>
@@ -543,12 +535,6 @@ function OrderDrawer({
                     ⚠️ {PROBLEM_LABEL[p.code] ?? p.code} · {new Date(p.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 ))}
-                {order.courierRating ? (
-                  <span style={{ color: 'var(--ink)' }}>
-                    {'★'.repeat(order.courierRating.stars)}{'☆'.repeat(5 - order.courierRating.stars)} mijoz bahosi
-                    {order.courierRating.comment ? ` — «${order.courierRating.comment}»` : ''}
-                  </span>
-                ) : null}
               </div>
             </section>
           )}
@@ -638,7 +624,6 @@ function OrderDrawer({
             </div>
             <p className="mt-1.5 text-xs" style={{ color: 'var(--muted)' }}>
               To‘lov: {order.paymentMethod || '—'}
-              {order.paymentProvider ? ` (${providerLabel(order.paymentProvider)}${order.payment?.cardMask ? ` ${order.payment.cardMask}` : ''})` : ''}
               {order.paymentStatus ? ` • ${order.paymentStatus}` : ''}
             </p>
             {order.receipt?.url && (

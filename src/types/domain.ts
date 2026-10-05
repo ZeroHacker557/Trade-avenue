@@ -1,7 +1,7 @@
 export type AppPage =
   | 'home' | 'catalog' | 'favorites' | 'orders' | 'profile'
   | 'detail' | 'checkout' | 'addresses' | 'profile_edit'
-  | 'reviews' | 'notifications' | 'language' | 'support' | 'receipt'
+  | 'notifications' | 'language' | 'support' | 'receipt'
 
 /**
  * Set tarkibidagi bitta qator. Katalogda `productId` bor; buyurtmada esa
@@ -113,7 +113,6 @@ export type Category = {
 }
 
 export type OrderStatus =
-  | 'To‘lov kutilmoqda'
   | 'Yangi' | 'Qabul qilindi' | 'Yetkazilmoqda' | 'Yetkazildi' | 'Bekor qilingan' | 'Rad etildi'
 
 export type Order = {
@@ -137,14 +136,9 @@ export type Order = {
   /** Yakuniy summa: subtotal - discount + deliveryFee. */
   total: number
   status: OrderStatus
-  paymentMethod?: 'Naqd' | 'Karta' | 'Onlayn'
+  paymentMethod?: 'Naqd' | 'Karta'
   paymentStatus?: 'Tolangan' | 'Kutilmoqda' | 'Rad etildi' | 'Qaytarildi' | 'Tekshirish kerak'
-  /** Onlayn to'lov: qaysi usul (click, payme, uzum, paylov). */
-  paymentProvider?: string | null
-  /** Onlayn to'lov sahifasi (server yozadi). */
-  payment?: { provider?: string; checkoutUrl?: string | null; state?: number; cardMask?: string | null } | null
   paidAt?: string | null
-  /** Nega bekor qilingan: payment_timeout, payment_cancelled… */
   cancelReason?: string | null
   customer: OrderForm
   userId?: number
@@ -153,21 +147,17 @@ export type Order = {
   notified?: boolean
   /** Eski yozuvlarda formatlangan sana matni bo'lishi mumkin. */
   date?: string
-  /** Kuryer — «Kuryer yo'lda» kartochkasi va baho oynasi uchun (server yozadi). */
+  /** Kuryer (server yozadi). */
   courierId?: string | null
   courierName?: string | null
   courierPhone?: string | null
   takenAt?: string | null
-  /** Taxminiy yetib kelish vaqti — kuryer olganda joylashuvidan hisoblanadi. */
+  /** Taxminiy yetib kelish vaqti — kuryer olganda joylashuvidan (admin xaritasi). */
   etaAt?: string | null
   etaMinutes?: number | null
-  /** Kuryer bu manzildan oldin boradigan boshqa manzillar soni (olgan paytdagi). */
-  etaStops?: number | null
   /** Kuryer «Yetib keldim» bosgan vaqt. */
   arrivedAt?: string | null
   deliveredAt?: string | null
-  /** Mijoz kuryerni baholagan bo'lsa. */
-  courierRating?: { stars: number; tags?: string[]; comment?: string; at?: string } | null
 }
 
 /** Firestore'ga yozishdan oldingi buyurtma — id va raqam server tomonda beriladi. */
@@ -178,12 +168,6 @@ export type PaymentSettings = {
   cardOwner: string
   /** Karta orqali to'lov (o'tkazma) yoqilganmi — admin → Sozlamalar. Yo'q — yoqilgan. */
   transfer?: boolean
-  /** Onlayn to'lov (WLCM) yoqilganmi va qaysi usullar ko'rinadi. */
-  online?: boolean
-  onlineProviders?: string[]
-  /** Sinov rejimi: onlayn to'lovni faqat shu Telegram ID'lar ko'radi. */
-  onlineTestOnly?: boolean
-  onlineTesters?: number[]
 }
 
 export type DeliverySettings = {
@@ -201,11 +185,7 @@ export type OrderForm = {
   address: string
   location: { lat: number; lng: number } | null
   comment: string
-  paymentMethod: 'Naqd' | 'Karta' | 'Onlayn'
-  /** Onlayn to'lovda tanlangan usul. */
-  paymentProvider?: string
-  /** Qaysi tugma tanlangan (Uzcard/Humo ham Payme sahifasini ochadi) — faqat ko'rinish uchun. */
-  paymentTile?: string
+  paymentMethod: 'Naqd' | 'Karta'
   promoCode?: string
   /**
    * Buyurtmani boshqa odam oladigan bo'lsa — uning ismi va raqami.
@@ -274,16 +254,6 @@ export type CartRow = {
   quantity: number
   size?: string
   color?: string
-}
-
-export type Review = {
-  id: string
-  productId: number
-  userId: number
-  userName: string
-  rating: number // 1 to 5
-  comment: string
-  date: string
 }
 
 export type Notification = {

@@ -96,12 +96,7 @@ export function demoOverview(): Promise<CourierOverview> {
     setTimeout(() => resolve({
       profile: {
         name: 'Komiljon Karimov', phone: '+998 90 555 12 34', telegramId: 1, onShift,
-        rating: { count: 23, average: 4.8 },
       },
-      reviews: [
-        { number: '#0013', at: minutesAgo(60), stars: 5, tags: ['fast', 'polite'], comment: 'Juda tez olib keldi, rahmat!' },
-        { number: '#0011', at: minutesAgo(95), stars: 4, tags: ['careful'], comment: '' },
-      ],
       location: { at: new Date(Date.now() - 20 * 60_000).toISOString(), source: 'app', liveUntil: null },
       cash: {
         held: {

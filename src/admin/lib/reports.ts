@@ -115,14 +115,14 @@ export function buildReport(orders: AdminOrder[], products: ProductRow[], period
   type CourierRow = {
     name: string; delivered: number; cash: number; card: number
     minutes: number[]; withEta: number; onTime: number; arrived: number
-    stars: number[]; problems: number
+    problems: number
   }
   const byCourier = new Map<string, CourierRow>()
   const rowOf = (o: AdminOrder) => {
     const key = o.courierId || 'none'
     const row = byCourier.get(key) ?? {
       name: o.courierName || (o.courierId ? 'Kuryer' : 'Biriktirilmagan'),
-      delivered: 0, cash: 0, card: 0, minutes: [], withEta: 0, onTime: 0, arrived: 0, stars: [], problems: 0,
+      delivered: 0, cash: 0, card: 0, minutes: [], withEta: 0, onTime: 0, arrived: 0, problems: 0,
     }
     byCourier.set(key, row)
     return row
@@ -130,7 +130,7 @@ export function buildReport(orders: AdminOrder[], products: ProductRow[], period
   for (const o of delivered) {
     const row = rowOf(o)
     row.delivered++
-    // Karta va onlayn — naqdsiz
+    // Karta — naqdsiz
     if (isCashPayment(o.paymentMethod)) row.cash += Number(o.total) || 0
     else row.card += Number(o.total) || 0
 
@@ -143,7 +143,6 @@ export function buildReport(orders: AdminOrder[], products: ProductRow[], period
       if (done <= eta + LATE_GRACE) row.onTime++
     }
     if (o.arrivedAt) row.arrived++
-    if (o.courierRating?.stars) row.stars.push(o.courierRating.stars)
   }
   // Muammolar — yetkazilmaganlar (masalan rad etilgan) ham hisobga kiradi
   for (const o of inPeriod) if (o.courierId && o.problems?.length) rowOf(o).problems += o.problems.length
@@ -160,13 +159,11 @@ export function buildReport(orders: AdminOrder[], products: ProductRow[], period
       onTimeRate: c.withEta ? (c.onTime / c.withEta) * 100 : null,
       late: c.withEta - c.onTime,
       arrivedRate: c.delivered ? (c.arrived / c.delivered) * 100 : null,
-      rating: avg(c.stars),
-      ratings: c.stars.length,
       problems: c.problems,
     }))
     .sort((a, b) => b.delivered - a.delivered)
 
-  const payments = (['Naqd', 'Karta', 'Onlayn'] as const).map((method) => {
+  const payments = (['Naqd', 'Karta'] as const).map((method) => {
     const list = valid.filter((o) => (o.paymentMethod || 'Naqd') === method)
     return { method, orders: list.length, revenue: list.reduce((s, o) => s + (Number(o.total) || 0), 0) }
   })
@@ -266,10 +263,10 @@ export function reportSheets(r: Report): SheetSpec[] {
       title: title('kuryerlar bo‘yicha (yetkazilganlar)'),
       headers: [
         'Kuryer', 'Yetkazdi', 'O‘rtacha vaqt (daq)', 'Vaqtida, %', 'Kechikdi', '«Yetib keldim», %',
-        'Reyting', 'Baholar', 'Muammolar', 'Naqd olingan (so‘m)', 'Karta (so‘m)', 'Jami (so‘m)',
+        'Muammolar', 'Naqd olingan (so‘m)', 'Karta (so‘m)', 'Jami (so‘m)',
       ],
-      widths: [24, 10, 17, 11, 10, 16, 9, 9, 11, 19, 15, 15],
-      styles: ['text', 'number', 'number', 'percent', 'number', 'percent', 'text', 'number', 'number', 'money', 'money', 'money'],
+      widths: [24, 10, 17, 11, 10, 16, 11, 19, 15, 15],
+      styles: ['text', 'number', 'number', 'percent', 'number', 'percent', 'number', 'money', 'money', 'money'],
       rows: r.couriers.map((c) => [
         c.name,
         c.delivered,
@@ -277,8 +274,6 @@ export function reportSheets(r: Report): SheetSpec[] {
         c.onTimeRate === null ? '—' : pct(c.onTimeRate),
         c.late,
         c.arrivedRate === null ? '—' : pct(c.arrivedRate),
-        c.rating === null ? '—' : c.rating.toFixed(1),
-        c.ratings,
         c.problems,
         c.cash,
         c.card,

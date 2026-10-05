@@ -1,11 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import {
-  AWAITING_PAYMENT, LOW_STOCK_AT, bumpOrdersSignal, notifyLowStock, notifyNewOrder,
-} from './_lib/actions/orders.js'
-import { onlineSettings, readCard, readProvider, startCardPayment, startPayment } from './_lib/actions/payments.js'
-import { WlcmError } from './_lib/wlcm.js'
-import { restoreStock } from './_lib/stock.js'
-import type { WlcmProvider } from './_lib/wlcm.js'
+import { LOW_STOCK_AT, bumpOrdersSignal, notifyLowStock, notifyNewOrder } from './_lib/actions/orders.js'
 import { pushOrderSafe } from './_lib/actions/linko-orders.js'
 import { readReceipt, uploadReceipt } from './_lib/receipts.js'
 import { adminAuth, adminDb } from './_lib/firebase-admin.js'
@@ -29,9 +23,7 @@ type IncomingOrder = {
     address: string
     location: { lat: number; lng: number } | null
     comment: string
-    paymentMethod: 'Naqd' | 'Karta' | 'Onlayn'
-    /** Onlayn to'lovda — Click / Payme / Uzum / Paylov. */
-    paymentProvider?: WlcmProvider | null
+    paymentMethod: 'Naqd' | 'Karta'
     /** Buyurtmani boshqa odam oladigan bo'lsa. */
     recipientName?: string
     recipientPhone?: string
@@ -58,11 +50,7 @@ function readOrder(body: unknown): IncomingOrder {
   const address = String(customer.address || '').trim()
   if (!name || !phone || !address) throw new Error("Ism, telefon va manzil to'ldirilishi shart")
 
-  const paymentMethod = customer.paymentMethod === 'Karta' || customer.paymentMethod === 'Onlayn'
-    ? customer.paymentMethod
-    : 'Naqd'
-  const paymentProvider = paymentMethod === 'Onlayn' ? readProvider(customer.paymentProvider) : null
-  if (paymentMethod === 'Onlayn' && !paymentProvider) throw new Error("To'lov usulini tanlang")
+  const paymentMethod = customer.paymentMethod === 'Karta' ? 'Karta' : 'Naqd'
 
   return {
     items: items.map((item) => {
@@ -87,7 +75,6 @@ function readOrder(body: unknown): IncomingOrder {
           : null,
       comment: String(customer.comment || '').slice(0, 500),
       paymentMethod,
-      paymentProvider,
       recipientName: String(customer.recipientName || '').trim().slice(0, 120),
       recipientPhone: String(customer.recipientPhone || '').trim().slice(0, 40),
     },
@@ -139,20 +126,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = Number(uid)
 
   /*
-   * Onlayn to'lov: admin yoqqan va kalitlar sozlangan bo'lishi shart.
-   * Buyurtma «To'lov kutilmoqda» bo'lib yaratiladi — xodimlarga to'lov
-   * o'tgandan keyingina ko'rinadi (api/_lib/actions/payments.ts).
-   */
-  const online = order.customer.paymentMethod === 'Onlayn'
-  /*
-   * Karta bilan to'lov (Uzcard/Humo): raqam va muddat faqat shu so'rov
-   * davomida xotirada — buyurtmaga ham, logga ham yozilmaydi.
-   */
-  const card = online && order.customer.paymentProvider === 'card' ? readCard(req.body?.card) : null
-  if (online && order.customer.paymentProvider === 'card' && !card) {
-    return fail(res, 400, 'Karta raqami yoki muddati noto‘g‘ri', 'CARD_INVALID')
-  }
-  /*
    * Karta (o'tkazma): to'lov cheki buyurtma bilan BIRGA keladi — mijoz
    * «Buyurtma berish» ni bosganda chekni yuklaydi, shundan keyingina
    * buyurtma yaratiladi va adminga chek rasmi bilan boradi.
@@ -173,13 +146,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return fail(res, 502, 'Chekni saqlab bo‘lmadi, qayta urinib ko‘ring', 'RECEIPT_UPLOAD')
     }
   }
-  if (online) {
-    const settings = await onlineSettings(userId)
-    if (!settings.enabled || !order.customer.paymentProvider || !settings.providers.includes(order.customer.paymentProvider)) {
-      return fail(res, 400, 'Onlayn to‘lov hozircha mavjud emas', 'ONLINE_DISABLED')
-    }
-  }
-
   try {
     const result = await db.runTransaction(async (tx) => {
       // ── 1. O'qishlar (transaction'da hamma o'qish yozishdan oldin) ──
@@ -229,11 +195,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             discount: Number(data.discount) || 0,
             deliveryFee: Number(data.deliveryFee) || 0,
             duplicate: true,
-            // Takroriy so'rov — avval yaratilgan to'lov sahifasi (yoki SMS kod oynasi) qaytadi
-            checkoutUrl: data.status === AWAITING_PAYMENT ? (data.payment?.checkoutUrl ?? null) : null,
-            needsOtp: data.status === AWAITING_PAYMENT && data.payment?.provider === 'card',
-            otpPhone: data.payment?.otpPhone ?? null,
-            cardMask: data.payment?.cardMask ?? null,
           }
         }
       }
@@ -408,18 +369,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         promoCode: appliedPromo,
         deliveryFee: appliedDelivery,
         total,
-        status: online ? AWAITING_PAYMENT : 'Yangi',
+        status: 'Yangi',
         paymentMethod: order.customer.paymentMethod,
         paymentStatus: order.customer.paymentMethod === 'Naqd' ? null : 'Kutilmoqda',
         // Karta (o'tkazma) — mijoz yuklagan to'lov cheki
         receipt: receiptUrl ? { url: receiptUrl, uploadedAt: new Date().toISOString() } : null,
-        paymentProvider: order.customer.paymentProvider ?? null,
         customer: { ...order.customer, promoCode: appliedPromo },
         clientOrderId: order.clientOrderId ?? null,
         source: order.source ?? null,
-        // Botga qayerdan kelgan (reklama havolasi /start meta_ig…) — bot/source_tracking.py
-        startSource: typeof userData.lastSource === 'string' ? userData.lastSource : null,
-        firstSource: typeof userData.firstSource === 'string' ? userData.firstSource : null,
         userId,
         username: userData.username ?? null,
         notified: false,
@@ -433,59 +390,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         deliveryFee: appliedDelivery,
         duplicate: false,
         lowStock,
-        checkoutUrl: null as string | null,
-        needsOtp: false,
-        otpPhone: null as string | null,
-        cardMask: null as string | null,
       }
     })
-
-    // ── Onlayn to'lov: to'lov sahifasi ──────────────────────────
-    if (online && !result.duplicate) {
-      const snap = await db.collection('orders').doc(result.id).get()
-      try {
-        const payment = card
-          ? await startCardPayment(result.id, snap.data() || {}, card)
-          : await startPayment(result.id, snap.data() || {}, order.customer.paymentProvider as WlcmProvider)
-        return res.status(200).json({
-          id: result.id,
-          orderNumber: result.orderNumber,
-          total: result.total,
-          discount: result.discount,
-          deliveryFee: result.deliveryFee,
-          duplicate: false,
-          checkoutUrl: payment.checkoutUrl,
-          // Karta: SMS kod yuborildi — ilova kod oynasini ochadi
-          needsOtp: Boolean(card),
-          otpPhone: payment.otpPhone ?? null,
-          cardMask: payment.cardMask ?? null,
-        })
-      } catch (error) {
-        // To'lov sahifasi ochilmadi — buyurtma bekor, qoldiq qaytadi, savat mijozda qoladi.
-        // Karta xatosida faqat holat kodi yoziladi (karta ma'lumoti logga tushmasin).
-        if (card) console.error('[orders] karta to‘lovi ochilmadi:', error instanceof WlcmError ? error.message : 'xato')
-        else console.error('[orders] to‘lov yaratilmadi:', error)
-        await db.collection('orders').doc(result.id).set({
-          status: 'Bekor qilingan',
-          statusUpdatedAt: new Date().toISOString(),
-          paymentStatus: 'Rad etildi',
-          cancelReason: 'payment_start_failed',
-          // Mijoz qayta bossa yangi buyurtma yaratilsin (eski kalit band bo'lmasin)
-          clientOrderId: null,
-        }, { merge: true })
-        await restoreStock(result.id)
-        // Karta rad etildi (4xx) — mijoz ma'lumotni tekshirsin
-        if (card && error instanceof WlcmError && error.status >= 400 && error.status < 500) {
-          return fail(res, 400, 'Karta qabul qilinmadi — raqam va muddatni tekshiring', 'CARD_REJECTED')
-        }
-        return fail(res, 502, 'To‘lov sahifasini ochib bo‘lmadi, keyinroq urinib ko‘ring', 'PAYMENT_START')
-      }
-    }
 
     // Xodimlarga xabar — javobni kutmasdan emas, ATAYLAB kutib.
     // Serverless funksiya javob qaytargach to'xtaydi va "orqa fonda"
     // boshlangan ish bajarilmay qolishi mumkin.
-    if (!result.duplicate && !online) {
+    if (!result.duplicate) {
       const snap = await db.collection('orders').doc(result.id).get()
       await notifyNewOrder(result.id, snap.data() || {})
       // Kuryer ilovalari (smenadagilar) ro'yxatni yangilaydi
@@ -508,10 +419,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       discount: result.discount,
       deliveryFee: result.deliveryFee,
       duplicate: result.duplicate,
-      checkoutUrl: result.checkoutUrl ?? null,
-      needsOtp: result.needsOtp ?? false,
-      otpPhone: result.otpPhone ?? null,
-      cardMask: result.cardMask ?? null,
     })
   } catch (error) {
     const raw = error instanceof Error ? error.message : ''

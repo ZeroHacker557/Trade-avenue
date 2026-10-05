@@ -18,9 +18,7 @@ export type Route =
   | 'promotions'
   | 'ads'
   | 'banners'
-  | 'voices'
   | 'reports'
-  | 'sources'
   | 'customers'
   | 'broadcast'
   | 'channel'
@@ -34,7 +32,6 @@ export type Route =
   | 'linko-orders'
   | 'audit'
   | 'backups'
-  | 'brain'
 
 export const ROUTES: Route[] = [
   'dashboard',
@@ -46,9 +43,7 @@ export const ROUTES: Route[] = [
   'promotions',
   'ads',
   'banners',
-  'voices',
   'reports',
-  'sources',
   'customers',
   'broadcast',
   'channel',
@@ -62,7 +57,6 @@ export const ROUTES: Route[] = [
   'linko-orders',
   'audit',
   'backups',
-  'brain',
 ]
 
 const DEFAULT: Route = 'dashboard'

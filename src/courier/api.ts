@@ -64,8 +64,6 @@ export type CourierCash = {
   handovers: CashHandover[]
 }
 
-export type CourierReview = { number: string; at: string | null; stars: number; tags: string[]; comment: string }
-
 export type CourierBucket = { delivered: number; cash: number; card: number }
 
 export type CourierOverview = {
@@ -75,9 +73,7 @@ export type CourierOverview = {
     telegramId: number | null
     /** Smena: «Ishdaman» — yangi buyurtma xabarlari keladi. */
     onShift: boolean
-    rating: { count: number; average: number | null }
   }
-  reviews: CourierReview[]
   cash: CourierCash
   /** Oxirgi joylashuv: `live` — Telegram jonli ulashishi, `app` — ochiq ilova. */
   location: { at: string | null; source: 'live' | 'app' | null; liveUntil: string | null }

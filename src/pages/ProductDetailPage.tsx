@@ -5,19 +5,15 @@ import { PromoTimer } from '../components/promo/PromoTimer'
 import { productOriginal, productPhoto, productThumb } from '../utils/product-image'
 import { createPortal } from 'react-dom'
 import {
-  ArrowLeft, Heart, Minus, MessageSquare, Plus, ShoppingBag, ShoppingCart, Star, Truck, UserRound, ZoomIn,
+  ArrowLeft, Heart, Minus, Plus, ShoppingBag, ShoppingCart, Truck, ZoomIn,
 } from 'lucide-react'
 import { formatPrice } from '../data'
-import { hapticSuccess, getTelegramUser, showAlert } from '../utils/telegram'
 import { ProductImage } from '../components/product/ProductImage'
-import { formatDate } from '../utils/date'
 import { CartButton } from '../components/ui/CartButton'
 import { ImageLightbox } from '../components/ui/ImageLightbox'
-import { subscribeToProductReviews } from '../lib/firebase'
-import { apiPost, ApiError } from '../lib/api'
 import { track } from '../lib/track'
 import { useT } from '../i18n'
-import type { Product, Review } from '../types/domain'
+import type { Product } from '../types/domain'
 import { PageTitle } from '../components/layout/PageTitle'
 
 type Props = {
@@ -54,53 +50,10 @@ export function ProductDetailPage({
   const lowStock = typeof stock === 'number' && stock > 0 && stock <= 5
   const maxCount = typeof stock === 'number' && stock > 0 ? Math.min(stock, 99) : 99
 
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [userRating, setUserRating] = useState(0)
-  const [userComment, setUserComment] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [reviewNotice, setReviewNotice] = useState('')
-  const tgUser = getTelegramUser()
-
-  useEffect(() => {
-    const unsub = subscribeToProductReviews(product.id, setReviews)
-    return () => unsub()
-  }, [product.id])
-
   // Analitika: mahsulot ko'rildi (12-band)
   useEffect(() => {
     track('view', product.id)
   }, [product.id])
-
-  const avgRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : product.rating.toFixed(1)
-  const reviewCount = reviews.length > 0 ? reviews.length : product.reviews
-
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!tgUser) return showAlert(t('profile.userNotFound'))
-    if (userRating === 0) return showAlert(t('reviews.needRating'))
-
-    setIsSubmitting(true)
-    setReviewNotice('')
-    try {
-      // Server sotib olganini tekshiradi va mahsulot reytingini
-      // qayta hisoblaydi (9- va 10-bandlar)
-      await apiPost('/api/reviews', {
-        productId: product.id,
-        rating: userRating,
-        comment: userComment.trim(),
-      })
-      hapticSuccess()
-      setUserRating(0)
-      setUserComment('')
-      setReviewNotice(t('reviews.thanks'))
-    } catch (error) {
-      setReviewNotice(error instanceof ApiError ? error.message : t('reviews.error'))
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const handleAddToCart = () => {
     if (soldOut) return
@@ -223,11 +176,6 @@ export function ProductDetailPage({
           {product.name}
         </h1>
 
-        <p className="mt-3 flex flex-wrap items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
-          <Star size={18} fill="var(--warning)" style={{ color: 'var(--warning)' }} />
-          {avgRating} ({t('product.ratingCount', { count: reviewCount })})
-        </p>
-
         <div className="mt-5 flex items-baseline gap-3">
           <strong className="text-3xl" style={{ color: 'var(--ink)' }}>{formatPrice(product.price)}</strong>
           {product.oldPrice && <del style={{ color: 'var(--faint)' }}>{formatPrice(product.oldPrice)}</del>}
@@ -332,98 +280,6 @@ export function ProductDetailPage({
           </section>
         )}
 
-        {/* Sharhlar */}
-        <section className="mt-8">
-          <h3 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{t('reviews.title')}</h3>
-
-          <form
-            onSubmit={handleSubmitReview}
-            className="mt-5 rounded-2xl border p-4"
-            style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
-          >
-            <p className="mb-2 text-sm font-bold" style={{ color: 'var(--ink-2)' }}>{t('reviews.rateThis')}</p>
-            <div className="mb-4 flex gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setUserRating(star)}
-                  className="transition hover:scale-110 active:scale-95"
-                  aria-label={`${star}`}
-                >
-                  <Star
-                    size={28}
-                    fill={star <= userRating ? 'var(--warning)' : 'none'}
-                    style={{ color: star <= userRating ? 'var(--warning)' : 'var(--line)' }}
-                  />
-                </button>
-              ))}
-            </div>
-
-            <div className="field items-start">
-              <MessageSquare size={19} className="mt-0.5 shrink-0" style={{ color: 'var(--faint)' }} />
-              <textarea
-                value={userComment}
-                onChange={(e) => setUserComment(e.target.value)}
-                placeholder={t('reviews.placeholder')}
-                rows={2}
-                className="resize-none text-sm"
-              />
-            </div>
-
-            <button type="submit" disabled={isSubmitting || userRating === 0} className="btn-primary mt-4 w-full py-3 text-sm">
-              {isSubmitting ? t('reviews.submitting') : t('reviews.submit')}
-            </button>
-
-            {reviewNotice && (
-              <p className="mt-3 text-center text-xs font-bold" style={{ color: 'var(--muted)' }}>
-                {reviewNotice}
-              </p>
-            )}
-          </form>
-
-          <div className="mt-6 space-y-4">
-            {reviews.length === 0 ? (
-              <p className="py-4 text-center text-sm" style={{ color: 'var(--muted)' }}>{t('reviews.empty')}</p>
-            ) : (
-              reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="border-b pb-4 last:border-0 last:pb-0"
-                  style={{ borderColor: 'var(--line-soft)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="grid size-8 place-items-center rounded-full"
-                      style={{ background: 'var(--surface-3)', color: 'var(--muted)' }}
-                    >
-                      <UserRound size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{review.userName}</p>
-                      <p className="text-xs" style={{ color: 'var(--faint)' }}>{formatDate(review.date)}</p>
-                    </div>
-                    <div className="ml-auto flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          size={13}
-                          fill={star <= review.rating ? 'var(--warning)' : 'none'}
-                          style={{ color: star <= review.rating ? 'var(--warning)' : 'var(--line)' }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {review.comment && (
-                    <p className="ml-10 mt-2 text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-                      {review.comment}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
       </section>
 
       {/* Pastki panel — modal ochiq bo'lsa chizilmaydi */}

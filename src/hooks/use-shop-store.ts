@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { withMainLines } from '../config/categories'
-import { subscribeToVoices, subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToUserOrders, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
+import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToUserOrders, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
 import type { ReceiptUpload } from '../components/checkout/ReceiptSheet'
-import { setWelcomeVoices } from '../utils/welcome-voice'
 import { ensureSignedIn, onAuthChanged, auth } from '../lib/auth'
 import { apiPost } from '../lib/api'
 import { apiErrorText } from '../utils/api-error'
@@ -19,7 +18,6 @@ import type { AppPage, CartRow, Category, Order, OrderForm, Product, Section, Us
 import { hapticError, hapticFeedback, hapticSuccess, initTelegram } from '../utils/telegram'
 import { applyTheme, getStoredTheme, storeTheme, type ThemeMode } from '../utils/theme'
 import { heroTransition } from '../utils/view-transition'
-import { openPayment, type CardDraft } from '../utils/payment'
 import { useT } from '../i18n'
 
 /** Pastki menyudagi asosiy sahifalar — ularga o'tganda tarix tozalanadi. */
@@ -260,12 +258,6 @@ export function useShopStore() {
     checkoutTimer.current = null
     setCheckoutDone(false)
   }, [])
-  /** Onlayn to'lov kutilayotgan buyurtma — «To'lov kutilmoqda» oynasi (PaymentWaitingSheet). */
-  const [payingOrderId, setPayingOrderId] = useState<string | null>(null)
-  const closePayment = useCallback(() => setPayingOrderId(null), [])
-  /** Karta bilan to'lov — SMS kod oynasi (CardOtpSheet). */
-  const [otpOrder, setOtpOrder] = useState<{ id: string; phone: string | null; cardMask: string | null } | null>(null)
-  const closeOtp = useCallback(() => setOtpOrder(null), [])
   const [isSubmitting, setSubmitting] = useState(false)
   const [authReady, setAuthReady] = useState(false)
   const [theme, setThemeState] = useState<ThemeMode>(getStoredTheme)
@@ -383,7 +375,6 @@ export function useShopStore() {
     let unsubProfile: (() => void) | undefined
     let unsubNotifications: (() => void) | undefined
     let unsubBanners: (() => void) | undefined
-    let unsubVoices: (() => void) | undefined
 
     const stopAll = () => {
       unsubOrders?.()
@@ -391,8 +382,6 @@ export function useShopStore() {
       unsubNotifications?.()
       unsubBanners?.()
       unsubBanners = undefined
-      unsubVoices?.()
-      unsubVoices = undefined
       unsubOrders = undefined
       unsubProfile = undefined
       unsubNotifications = undefined
@@ -440,8 +429,6 @@ export function useShopStore() {
         }
       })
       unsubBanners = subscribeToHomeBanners(setHomeBanners)
-      // Kirish ovozi — admin → «Kirish ovozlari» (intro tugagach chalinadi)
-      unsubVoices = subscribeToVoices(setWelcomeVoices)
       unsubNotifications = subscribeToUserNotifications(userId, (notifs) => {
         setNotifications(notifs)
         setUnreadNotificationsCount(notifs.filter((n: Notification) => !n.read).length)
@@ -829,46 +816,6 @@ export function useShopStore() {
    * o'chirilgan yoki tugagan mahsulot o'tkazib yuboriladi va mijozga
    * aytiladi. Savat darhol ochiladi — ikki bosishda rasmiylashtirish.
    */
-  /** To'lov o'tdi — kutish oynasi yopilib, «Buyurtma qabul qilindi» chiqadi. */
-  const finishPayment = useCallback(() => {
-    setPayingOrderId(null)
-    setCheckoutDone(true)
-    hapticSuccess()
-    if (checkoutTimer.current) clearTimeout(checkoutTimer.current)
-    checkoutTimer.current = setTimeout(() => setCheckoutDone(false), 6000)
-  }, [])
-
-  /** Kutish oynasidan: to'lov holatini server WLCM'dan so'rasin (xato — jim, keyingi urinishda). */
-  const checkPayment = useCallback(() => {
-    if (!payingOrderId) return
-    apiPost('/api/payment', { orderId: payingOrderId, check: true }).catch(() => {})
-  }, [payingOrderId])
-
-  /** SMS kodni tekshiradi: to'g'ri — muvaffaqiyat oynasi; xato — matni qaytadi. */
-  const confirmOtp = useCallback(async (code: string): Promise<string | null> => {
-    if (!otpOrder) return null
-    try {
-      await apiPost('/api/payment', { orderId: otpOrder.id, otp: code })
-      setOtpOrder(null)
-      finishPayment()
-      return null
-    } catch (error) {
-      return apiErrorText(error, t, 'checkout.failed', formatPrice)
-    }
-  }, [otpOrder, finishPayment, t])
-
-  /** «Buyurtmalarim» dagi «To'lash» — yangi to'lov sahifasi (eskisi eskirgan bo'lishi mumkin). */
-  const payOrder = useCallback(async (order: Order) => {
-    try {
-      const result = await apiPost<{ checkoutUrl: string | null }>('/api/payment', { orderId: order.id })
-      setPayingOrderId(order.id)
-      if (result.checkoutUrl) openPayment(result.checkoutUrl)
-    } catch (error) {
-      hapticError()
-      notify(apiErrorText(error, t, 'checkout.failed', formatPrice))
-    }
-  }, [notify, t])
-
   const reorder = useCallback((order: Order) => {
     let added = 0
     let skipped = 0
@@ -931,7 +878,7 @@ export function useShopStore() {
    * yuboriladi — narx, chegirma va jami serverda qayta hisoblanadi,
    * shuning uchun finalTotal parametri endi kerak emas.
    */
-  const submitOrder = useCallback(async (card?: CardDraft, receipt?: ReceiptUpload) => {
+  const submitOrder = useCallback(async (receipt?: ReceiptUpload) => {
     if (isSubmitting) return false
 
     if (!orderForm.name.trim() || !orderForm.phone.trim() || !orderForm.address.trim()) {
@@ -947,17 +894,8 @@ export function useShopStore() {
     if (!orderKeyRef.current) orderKeyRef.current = newOrderKey()
 
     setSubmitting(true)
-    const online = orderForm.paymentMethod === 'Onlayn'
-    type Created = {
-      id: string
-      checkoutUrl?: string | null
-      needsOtp?: boolean
-      otpPhone?: string | null
-      cardMask?: string | null
-    }
-    let created: Created
     try {
-      created = await apiPost<Created & { orderNumber: string; total: number }>('/api/orders', {
+      await apiPost<{ id: string; orderNumber: string; total: number }>('/api/orders', {
         clientOrderId: orderKeyRef.current,
         // Kanal e'loni / ommaviy xabardan kelgan bo'lsa — natija o'sha e'longa yoziladi
         source: currentCampaign(),
@@ -974,8 +912,6 @@ export function useShopStore() {
           location: orderForm.location,
           comment: orderForm.comment,
           paymentMethod: orderForm.paymentMethod,
-          // Onlayn to'lovda — qaysi ilova orqali (Click, Payme, Uzum)
-          paymentProvider: online ? orderForm.paymentProvider : undefined,
           // Buyurtmani boshqa odam oladigan bo'lsa
           recipientName: orderForm.recipientName?.trim() || '',
           recipientPhone: orderForm.recipientPhone?.trim() || '',
@@ -983,8 +919,6 @@ export function useShopStore() {
         promoCode: orderForm.promoCode,
         // Karta (o'tkazma) — to'lov cheki rasmi (buyurtma u bilan birga yaratiladi)
         ...(orderForm.paymentMethod === 'Karta' && receipt ? { receipt } : {}),
-        // Karta (Uzcard/Humo) — faqat shu so'rovda, hech qayerda saqlanmaydi
-        ...(online && orderForm.paymentProvider === 'card' && card ? { card } : {}),
       })
     } catch (error) {
       // Buyurtma yaratilmadi — savat SAQLANIB qoladi (F-05)
@@ -998,30 +932,11 @@ export function useShopStore() {
 
     orderKeyRef.current = null
     setCartItems({})
-    // Onlayn to'lovni tanlagan mijozga keyingi safar ham shu usul turadi
     setOrderForm({
       name: '', phone: '', address: '', location: null, comment: '',
-      // Keyingi safar ham shu usul tursin (naqd / karta / onlayn)
-      paymentMethod: online ? 'Onlayn' : orderForm.paymentMethod === 'Karta' ? 'Karta' : 'Naqd',
-      paymentProvider: online ? orderForm.paymentProvider : undefined,
-      paymentTile: online ? orderForm.paymentTile : undefined,
+      // Keyingi safar ham shu usul tursin (naqd / karta)
+      paymentMethod: orderForm.paymentMethod === 'Karta' ? 'Karta' : 'Naqd',
     })
-
-    /*
-     * Onlayn to'lov: buyurtma «To'lov kutilmoqda» — to'lov sahifasi
-     * ochiladi, ilovada kutish oynasi turadi. «Qabul qilindi» animatsiyasi
-     * to'lov o'tgach chiqadi (finishPayment).
-     */
-    if (created.needsOtp) {
-      // Karta: egasiga SMS kod ketdi — kod oynasi
-      setOtpOrder({ id: created.id, phone: created.otpPhone ?? null, cardMask: created.cardMask ?? null })
-      return true
-    }
-    if (created.checkoutUrl) {
-      setPayingOrderId(created.id)
-      openPayment(created.checkoutUrl)
-      return true
-    }
 
     setCheckoutDone(true)
     hapticSuccess()
@@ -1056,8 +971,7 @@ export function useShopStore() {
     likedIds, selectedProduct,
     isSearchOpen, isCartOpen, query, searchResults, toast, cartPrompt,
     myOrders, ordersReady, checkoutDone, dismissCheckout, reorder,
-    payingOrderId, closePayment, finishPayment, payOrder, checkPayment,
-    otpOrder, closeOtp, confirmOtp, isSubmitting, authReady, isAuthenticated, orderForm, userProfile,
+    isSubmitting, authReady, isAuthenticated, orderForm, userProfile,
     notifications, unreadNotificationsCount, unseenOrdersCount,
     catalogCategory, catalogSection, openCategory, homeBanners, openProductById, openSectionById,
     theme, setTheme, toggleTheme,

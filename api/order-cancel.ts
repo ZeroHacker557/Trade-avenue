@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { adminAuth, adminDb } from './_lib/firebase-admin.js'
 import { fail, requirePost } from './_lib/http.js'
-import { AWAITING_PAYMENT, applyStatusEffects, type OrderDoc } from './_lib/actions/orders.js'
+import { applyStatusEffects, type OrderDoc } from './_lib/actions/orders.js'
 
 /** Faqat shu statuslardagi buyurtmani mijoz bekor qila oladi. */
-const CANCELLABLE = [AWAITING_PAYMENT, 'Yangi', 'Qabul qilindi']
+const CANCELLABLE = ['Yangi', 'Qabul qilindi']
 
 /**
  * POST /api/order-cancel   { orderId }
@@ -60,8 +60,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const status = String(order.status || '')
       if (status === 'Bekor qilingan') throw new Error('ALREADY_CANCELLED')
       if (!CANCELLABLE.includes(status)) throw new Error('TOO_LATE')
-      // Onlayn to'langan — pulni qaytarish kerak, buni operator qiladi
-      if (order.paymentMethod === 'Onlayn' && order.paidAt) throw new Error('PAID_ONLINE')
 
       // Ombor qoldig'ini qaytaramiz
       const items = Array.isArray(order.products) ? order.products : []
@@ -92,9 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ikkinchi marta oshib ketmasligi uchun (api/_lib/stock.ts)
         stockRestored: true,
         stockRestoredAt: now,
-        // Bot adminlarga xabar berishi uchun bayroq. To'lanmagan onlayn
-        // buyurtmani xodimlar umuman ko'rmagan — ularga xabar kerak emas.
-        cancelNotified: status === AWAITING_PAYMENT,
+        // Bot adminlarga xabar berishi uchun bayroq
+        cancelNotified: false,
       })
 
       return {
@@ -126,7 +123,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       NOT_YOURS: 'Bu buyurtma sizniki emas',
       ALREADY_CANCELLED: 'Buyurtma allaqachon bekor qilingan',
       TOO_LATE: "Bu buyurtmani endi bekor qilib bo'lmaydi — operator bilan bog'laning",
-      PAID_ONLINE: "Buyurtma onlayn to'langan — bekor qilish va pulni qaytarish uchun operator bilan bog'laning",
     }
     if (messages[code]) return fail(res, 400, messages[code], code)
 
