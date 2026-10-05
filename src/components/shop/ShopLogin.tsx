@@ -75,20 +75,20 @@ export function ShopLogin({ onLogin, defaultPhone, onClose }: Props) {
 
         <div className="flex flex-col items-center text-center">
           {onClose ? (
-            <span className="shop-login__icon"><Store size={26} /></span>
+            <span className="shop-login__icon"><Store size={22} /></span>
           ) : (
-            <BrandLogo size={56} markOnly />
+            <BrandLogo size={44} markOnly />
           )}
-          <h1 className="mt-4 text-[1.35rem] font-extrabold leading-tight" style={{ color: 'var(--ink)' }}>
+          <h1 className="mt-3 text-[1.2rem] font-extrabold leading-tight" style={{ color: 'var(--ink)' }}>
             {onClose ? t('shop.add') : t('shop.loginTitle')}
           </h1>
-          <p className="mt-2 max-w-[20rem] text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1.5 max-w-[20rem] text-[0.82rem] leading-snug" style={{ color: 'var(--muted)' }}>
             {onClose ? t('shop.addText') : t('shop.loginText')}
           </p>
         </div>
 
         <form
-          className="mt-6 space-y-4"
+          className="mt-4 space-y-3"
           onSubmit={(e) => {
             e.preventDefault()
             void submit()
@@ -136,25 +136,24 @@ export function ShopLogin({ onLogin, defaultPhone, onClose }: Props) {
                 aria-describedby="shop-code-hint"
               />
             </div>
-            <p id="shop-code-hint" className="mt-1.5 pl-1 text-xs" style={{ color: 'var(--faint)' }}>{t('shop.codeHint')}</p>
+            <p id="shop-code-hint" className="mt-1 pl-1 text-[11px]" style={{ color: 'var(--faint)' }}>{t('shop.codeHint')}</p>
           </div>
 
           {error && (
             <p className="shop-login__error" role="alert">{error}</p>
           )}
 
-          <button type="submit" disabled={!ready} className="btn-primary w-full py-4" onClick={() => hapticFeedback('light')}>
+          <button type="submit" disabled={!ready} className="btn-primary w-full py-3.5" onClick={() => hapticFeedback('light')}>
             {busy ? <><Loader2 size={20} className="animate-spin" />{t('shop.loggingIn')}</> : t('shop.login')}
           </button>
         </form>
 
         <div className="shop-login__help">
-          <b>{t('shop.noCode')}</b>
-          <p>{t('shop.noCodeText')}</p>
-          <div className="mt-2.5 flex flex-wrap justify-center gap-2">
-            <a className="shop-login__link" href={phoneHref(contact.phone)}><Phone size={14} />{contact.phone}</a>
+          <p><b>{t('shop.noCode')}</b> {t('shop.noCodeText')}</p>
+          <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+            <a className="shop-login__link" href={phoneHref(contact.phone)}><Phone size={13} />{contact.phone}</a>
             <a className="shop-login__link" href={telegramHref(contact.telegram)} target="_blank" rel="noreferrer">
-              <Send size={14} />@{contact.telegram}
+              <Send size={13} />@{contact.telegram}
             </a>
           </div>
         </div>
