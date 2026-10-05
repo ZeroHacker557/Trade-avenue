@@ -1,5 +1,5 @@
 import { adminDb } from '../firebase-admin.js'
-import { linkoGet, linkoPost, linkoToken, readLinkoSettings, type LinkoSettings } from '../linko.js'
+import { linkoPost, linkoToken, readLinkoSettings, type LinkoSettings } from '../linko.js'
 import { isCashPayment } from '../pay-method.js'
 import { orderLabel } from '../order-number.js'
 
@@ -11,10 +11,12 @@ import { orderLabel } from '../order-number.js'
  * shuning uchun alohida modul.
  *
  * Nima yuboriladi:
- *   1. MIJOZ — Linko'da «market» (savdo nuqtasi) bo'lib yoziladi.
- *      Telegram id si `service_id` bo'ladi: bir mijoz ikki marta
- *      yaratilmaydi, ma'lumoti esa har buyurtmada yangilanadi.
- *   2. BUYURTMA — mahsulotlar, narx, miqdor, to'lov turi va holati.
+ *   1. DO'KON — Linko'dan sinxronlangan do'kon o'zining Linko id si
+ *      bilan ketadi (yangi «market» yaratilmaydi). Qo'lda qo'shilgan
+ *      do'kon Linko'da `ta-shop-<id>` service_id bilan yaratiladi va
+ *      keyingi buyurtmalarda yangilanadi.
+ *   2. BUYURTMA — mahsulotlar, narx, miqdor, to'lov turi va holati;
+ *      agent va narxlar ro'yxati — do'konniki (bo'lmasa sozlamadagi).
  *
  * Xato bo'lsa buyurtma YO'QOLMAYDI: sabab buyurtma hujjatiga yoziladi
  * (`linko.error`) va admin panelda qayta yuborish mumkin.
@@ -45,6 +47,18 @@ type OrderDoc = {
     location?: { lat: number; lng: number } | null
   }
   linko?: { orderId?: number; marketId?: number }
+  /** Buyurtma qaysi do'kon nomidan (api/orders.ts yozadi). */
+  shopId?: string
+  shop?: {
+    id?: string
+    name?: string
+    address?: string
+    location?: { lat: number; lng: number } | null
+    phones?: string[]
+    linkoId?: number
+    agentId?: number
+    priceListId?: number
+  }
 }
 
 /**
@@ -79,12 +93,12 @@ function dateOnly(value?: string): string {
 }
 
 /** Sozlama to'liq bo'lmasa buyurtma yuborilmaydi — sababini aytamiz. */
-function missingSetting(settings: LinkoSettings): string | null {
+function missingSetting(settings: LinkoSettings, order: OrderDoc): string | null {
   if (!settings.sendOrders) return null
   if (!settings.baseUrl) return 'Linko manzili kiritilmagan'
   if (!linkoToken()) return 'LINKO_TOKEN sozlanmagan'
-  if (!settings.agentId) return 'Agent tanlanmagan (Sozlamalar → Linko)'
-  // Yetkazuvchi ixtiyoriy — buyurtma agentga tushadi (Abubakr talabi, 2026-09-25)
+  // Agent — do'konning mas'ul agenti, bo'lmasa sozlamadagi umumiy agent
+  if (!num(order.shop?.agentId) && !settings.agentId) return 'Agent tanlanmagan (do‘konda ham, Sozlamalar → Linko da ham)'
   if (!settings.orderStockId) return 'Sklad tanlanmagan (Sozlamalar → Linko)'
   return null
 }
@@ -109,26 +123,32 @@ async function linkoProductId(productId: string): Promise<number | null> {
   return num((primary ?? rows[0]).linkoId) || null
 }
 
-/** Mijozni Linko'da «market» sifatida yaratadi yoki yangilaydi. */
-async function syncMarket(
+/**
+ * Buyurtmadagi do'konning Linko id si.
+ *
+ * Linko'dan kelgan do'konda — o'sha id. Qo'lda qo'shilgan do'kon Linko'da
+ * `ta-shop-<id>` bo'lib yaratiladi (bir marta; keyin ma'lumoti yangilanadi).
+ */
+async function marketOf(
   order: OrderDoc,
   settings: LinkoSettings,
-): Promise<{ id: number | null; serviceId: string }> {
-  const customer = order.customer ?? {}
-  const serviceId = `ta-${order.userId ?? 'mehmon'}`
+): Promise<{ id: number | null; serviceId: string | null }> {
+  const shop = order.shop ?? {}
+  if (num(shop.linkoId) > 0) return { id: num(shop.linkoId), serviceId: null }
+  if (!shop.id) throw new Error('Buyurtmada do‘kon yo‘q')
 
+  const serviceId = `ta-shop-${shop.id}`
+  const agentId = num(shop.agentId) || settings.agentId
+  const priceListId = num(shop.priceListId) || settings.priceListId
   const payload = [{
     service_id: serviceId,
-    name: text(customer.name) || `Telegram mijoz ${order.userId ?? ''}`.trim(),
+    name: text(shop.name) || `Do‘kon ${shop.id}`,
     is_confirmed: true,
-    phone: text(customer.phone),
-    address: text(customer.address),
-    ...(customer.location
-      ? { location: { lat: customer.location.lat, lon: customer.location.lng } }
-      : {}),
-    ...(settings.agentId ? { responsible_agent: { linko_id: settings.agentId } } : {}),
-    ...(settings.priceListId ? { price_list: { linko_id: settings.priceListId } } : {}),
-    // Mijoz turi («Telegram bot B2C») — mavjud mijozda ham keyingi buyurtmada yangilanadi
+    phone: text(shop.phones?.[0]),
+    address: text(shop.address),
+    ...(shop.location ? { location: { lat: shop.location.lat, lon: shop.location.lng } } : {}),
+    ...(agentId ? { responsible_agent: { linko_id: agentId } } : {}),
+    ...(priceListId ? { price_list: { linko_id: priceListId } } : {}),
     ...(settings.marketTypeId ? { market_type: { linko_id: settings.marketTypeId } } : {}),
   }]
 
@@ -136,7 +156,7 @@ async function syncMarket(
     'sync_market/', payload, settings,
   )
   if (body.errors?.length) {
-    throw new Error(`Mijoz yozilmadi: ${JSON.stringify(body.errors).slice(0, 200)}`)
+    throw new Error(`Do‘kon Linko’ga yozilmadi: ${JSON.stringify(body.errors).slice(0, 200)}`)
   }
   return { id: num(body.results?.[0]?.id) || null, serviceId }
 }
@@ -149,20 +169,11 @@ export async function pushOrder(orderId: string, order: OrderDoc): Promise<Resul
   const settings = await readLinkoSettings()
   if (!settings.sendOrders) return { ok: false, skipped: 'sendOrders' }
 
-  /*
-   * Onlayn to'lov: to'lanmagan buyurtma hali buyurtma emas. To'lov
-   * kutilayotganda yoki to'lanmay bekor bo'lganda Linko'ga yubormaymiz
-   * (u yerda yaratilmagan bo'lsa — keyin ham kerak emas).
-   */
-  const unpaidOnline = (order as { paymentMethod?: string }).paymentMethod === 'Onlayn'
-    && !(order as { paidAt?: string }).paidAt
-  if (unpaidOnline && !order.linko?.orderId) return { ok: false, skipped: 'unpaid' }
-
   const db = await adminDb()
   const save = (data: Record<string, unknown>) =>
     db.collection('orders').doc(orderId).set({ linko: data }, { merge: true })
 
-  const problem = missingSetting(settings)
+  const problem = missingSetting(settings, order)
   if (problem) {
     await save({ error: problem, at: new Date().toISOString() })
     return { ok: false, error: problem }
@@ -206,8 +217,10 @@ export async function pushOrder(orderId: string, order: OrderDoc): Promise<Resul
       return { ok: false, error }
     }
 
-    // ── Mijoz ──
-    const market = await syncMarket(order, settings)
+    // ── Do'kon ──
+    const market = await marketOf(order, settings)
+    const agentId = num(order.shop?.agentId) || settings.agentId
+    const priceListId = num(order.shop?.priceListId) || settings.priceListId
 
     // ── Buyurtma ──
     const cash = isCashPayment(text(order.paymentMethod))
@@ -222,9 +235,9 @@ export async function pushOrder(orderId: string, order: OrderDoc): Promise<Resul
       date_delivery: dateOnly(order.createdAt),
       market: market.id ? { linko_id: market.id } : { service_id: market.serviceId },
       stock: { linko_id: settings.orderStockId },
-      agent: { linko_id: settings.agentId },
+      agent: { linko_id: agentId },
       ...(settings.deliveryManId ? { delivery_man: { linko_id: settings.deliveryManId } } : {}),
-      ...(settings.priceListId ? { price_list: { linko_id: settings.priceListId } } : {}),
+      ...(priceListId ? { price_list: { linko_id: priceListId } } : {}),
       ...(settings.currencyId ? { linko_currency_id: settings.currencyId } : {}),
       // Chek raqami har kuni #0001 dan boshlanadi — Linko'da sana bilan
       service_order_number: order.orderDay
@@ -304,98 +317,6 @@ export async function linkoPushOrder(_staff: unknown, body: Record<string, unkno
  * Linko o'chiq bo'lgan yoki sozlama to'liq bo'lmagan paytdagi
  * buyurtmalar shu tariqa tiklanadi.
  */
-/**
- * Botdan kelgan ESKI mijozlarning turini bir martada yangilaydi (sozlamadagi
- * `marketTypeId`, masalan «Telegram bot B2C»).
- *
- * Faqat tur o'zgaradi. Linko ismni majburiy talab qiladi, shuning uchun
- * mijozning Linko'dagi HOZIRGI ismi o'qib olinadi va o'zgarmasdan qaytadi
- * (qo'lda o'zgartirilgan nom ustidan yozilmasin). Agent, narx ro'yxati,
- * manzil yuborilmaydi. Mijozlar — Linko'ga tushgan buyurtmalardagi
- * `userId` lar (`service_id: ta-<id>`); Linko'da ular buyurtmadagi ism
- * bo'yicha qidiriladi va `service_id` bilan aniq ajratiladi.
- * `userId` berilsa — faqat o'sha mijoz (sinov uchun).
- */
-export async function linkoSyncMarketTypes(body: Record<string, unknown> = {}): Promise<Result> {
-  const settings = await readLinkoSettings()
-  if (!settings.marketTypeId) return { ok: false, error: 'Mijoz turi (marketTypeId) sozlanmagan' }
-
-  const db = await adminDb()
-  const snap = await db.collection('orders').where('linko.marketId', '>', 0).get()
-  const only = text(String(body.userId ?? ''))
-
-  // Mijoz → buyurtmalardagi ismlari (qidiruv uchun)
-  const names = new Map<string, Set<string>>()
-  for (const doc of snap.docs) {
-    const data = doc.data() as OrderDoc
-    const id = String(data.userId ?? '')
-    if (!id || (only && id !== only)) continue
-    const set = names.get(id) ?? new Set<string>()
-    const name = text(data.customer?.name)
-    if (name) set.add(name)
-    names.set(id, set)
-  }
-
-  type MarketRow = {
-    id?: number
-    name?: string
-    service_id?: string | null
-    market_type?: { id?: number } | null
-    market_phones?: { phone?: string }[]
-    address?: string | null
-    location?: { lat?: number; lon?: number } | null
-    responsible_agent?: { id?: number } | null
-  }
-  let updated = 0
-  let already = 0
-  const notFound: string[] = []
-  const errors: string[] = []
-
-  for (const [id, candidates] of names) {
-    const serviceId = `ta-${id}`
-    let row: MarketRow | undefined
-    for (const name of candidates) {
-      const res = await linkoGet<{ results?: MarketRow[] }>('markets/', { search: name, limit: 50 }, settings)
-      row = res.results?.find((m) => m.service_id === serviceId)
-      if (row) break
-    }
-    if (!row?.name) {
-      notFound.push(id)
-      continue
-    }
-    if (row.market_type?.id === settings.marketTypeId) {
-      already++
-      continue
-    }
-    try {
-      /*
-       * Linko qisqa so'rovni («ism + tur») «Ошибка сервера» bilan rad etadi —
-       * shuning uchun mijozning Linko'dagi HOZIRGI qiymatlari o'zgarmasdan
-       * qaytariladi, faqat tur yangi.
-       */
-      const phone = row.market_phones?.find((p) => p?.phone)?.phone
-      const res = await linkoPost<{ results?: unknown[]; errors?: unknown[] }>('sync_market/', [{
-        service_id: serviceId,
-        name: row.name,
-        is_confirmed: true,
-        ...(phone ? { phone } : {}),
-        ...(row.address ? { address: row.address } : {}),
-        ...(row.location?.lat != null && row.location?.lon != null
-          ? { location: { lat: row.location.lat, lon: row.location.lon } }
-          : {}),
-        ...(row.responsible_agent?.id ? { responsible_agent: { linko_id: row.responsible_agent.id } } : {}),
-        ...(settings.priceListId ? { price_list: { linko_id: settings.priceListId } } : {}),
-        market_type: { linko_id: settings.marketTypeId },
-      }], settings)
-      if (res.errors?.length) errors.push(`${id}: ${JSON.stringify(res.errors).slice(0, 200)}`)
-      else updated++
-    } catch (error) {
-      errors.push(`${id}: ${error instanceof Error ? error.message.slice(0, 200) : 'xato'}`)
-    }
-  }
-  return { ok: errors.length === 0, users: names.size, updated, already, notFound, errors: errors.slice(0, 5) }
-}
-
 export async function linkoPushOrders(_staff: unknown, body: Record<string, unknown>): Promise<Result> {
   const settings = await readLinkoSettings()
   if (!settings.sendOrders) return { ok: true, skipped: 'sendOrders', sent: 0, failed: 0 }

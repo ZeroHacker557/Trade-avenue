@@ -8,7 +8,7 @@ import { parseDate } from '../utils/date'
 import { readPromotion, type Promotion } from '../utils/promotions'
 import { readSplashAd, type SplashAd } from '../utils/splash-ad'
 import { readBanners, type HomeBanner } from '../config/banners'
-import type { Product, Category, Section, Order, PaymentSettings, DeliverySettings, Notification, UserProfile } from '../types/domain'
+import type { Product, Category, Section, Order, PaymentSettings, DeliverySettings, Notification, Shop, UserProfile } from '../types/domain'
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig)
@@ -286,13 +286,15 @@ export function subscribeToSections(callback: (sections: Section[]) => void) {
   )
 }
 
-// Subscribe to User Orders
-export function subscribeToUserOrders(userId: number, callback: (orders: Order[]) => void) {
-  const ordersRef = collection(db, 'orders')
-  // We only use 'where' to avoid requiring a composite index in Firestore.
-  // Sorting will be done on the client side.
-  const q = query(ordersRef, where('userId', '==', userId))
-  
+/**
+ * Do'kon buyurtmalari — shu do'konga ulangan HAMMA akkauntlarniki
+ * (egasi ham, sotuvchisi ham bir ro'yxatni ko'radi). Rules: `shopId`
+ * foydalanuvchining `shops` claim'ida bo'lishi shart.
+ */
+export function subscribeToShopOrders(shopId: string, callback: (orders: Order[]) => void) {
+  // Faqat `where` — murakkab indeks talab qilinmasin; tartib ilovada
+  const q = query(collection(db, 'orders'), where('shopId', '==', shopId))
+
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map((snap) => {
       const data = snap.data()
@@ -300,21 +302,57 @@ export function subscribeToUserOrders(userId: number, callback: (orders: Order[]
         ...data,
         // Haqiqiy kalit — hujjat identifikatori (F-03)
         id: snap.id,
-        // Eski buyurtmalarda orderNumber yo'q: o'sha paytdagi "#1234567" ni ko'rsatamiz
-        orderNumber: data.orderNumber || data.id || snap.id,
+        orderNumber: data.orderNumber || snap.id,
         createdAt: data.createdAt || '',
       } as Order
     })
-
     orders.sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt))
-
     callback(orders)
   }, (error) => {
-    console.error("Error fetching user orders:", error)
-    // Xato bo'lsa ham javob beramiz: aks holda sahifa skeletda qotib
-    // qolardi. Bo'sh ro'yxat — «buyurtma yo'q» holati.
+    console.error('[Firebase] do‘kon buyurtmalari:', error)
+    // Bo'sh ro'yxat — sahifa skeletda qotib qolmasin
     callback([])
   })
+}
+
+/** Foydalanuvchi ulangan do'konlar (filiallar). Rules: `memberIds` da uid bo'lishi shart. */
+export function subscribeToMyShops(uid: string, callback: (shops: Shop[]) => void, onError?: (err: unknown) => void) {
+  const q = query(collection(db, 'shops'), where('memberIds', 'array-contains', uid))
+  return onSnapshot(q, (snapshot) => {
+    const shops = snapshot.docs
+      .map((snap) => readShopDoc(snap.id, snap.data()))
+      .filter((shop): shop is Shop => shop !== null)
+      .sort((a, b) => a.name.localeCompare(b.name))
+    callback(shops)
+  }, (error) => {
+    console.error('[Firebase] do‘konlar:', error)
+    onError?.(error)
+  })
+}
+
+/** «+998 90 123 45 67» — raqamlar 998XXXXXXXXX ko'rinishida saqlanadi. */
+function prettyPhone(value: string): string {
+  const d = value.replace(/\D/g, '')
+  if (d.length !== 12) return value
+  return `+${d.slice(0, 3)} ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10, 12)}`
+}
+
+function readShopDoc(id: string, data: Record<string, unknown>): Shop | null {
+  // Bloklangan do'kon ro'yxatda ko'rinmaydi (server ham buyurtma qabul qilmaydi)
+  if (data.active === false || data.linkoActive === false) return null
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : [])
+  const loc = data.location as { lat?: unknown; lng?: unknown } | null | undefined
+  return {
+    id,
+    name: String(data.name || ''),
+    address: String(data.address || ''),
+    location: loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))
+      ? { lat: Number(loc.lat), lng: Number(loc.lng) }
+      : null,
+    phones: [...new Set([...list(data.phones), ...list(data.extraPhones)])].map(prettyPhone),
+    agentName: String(data.agentName || ''),
+    priceListId: Number(data.priceListId) || 0,
+  }
 }
 
 // ==========================================

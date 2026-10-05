@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { linkoPull } from './_lib/actions/linko.js'
 import { linkoProbe } from './_lib/linko.js'
 import { endExpiredShifts } from './_lib/actions/shift.js'
-import { linkoPushOrders, linkoSyncMarketTypes } from './_lib/actions/linko-orders.js'
+import { linkoPushOrders } from './_lib/actions/linko-orders.js'
+import { shopsSync } from './_lib/actions/shops.js'
 import { fail } from './_lib/http.js'
 import { runTasks } from './_lib/actions/scheduler.js'
 
@@ -46,12 +47,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(await runTasks())
   }
 
-  // Eski bot mijozlarining turini bir martada yangilash (faqat tur, boshqa maydonlar emas)
-  if (req.query.markets === '1') {
-    const one = typeof req.query.user === 'string' ? req.query.user : ''
-    return res.status(200).json(await linkoSyncMarketTypes(one ? { userId: one } : {}))
-  }
-
   // Smenalar Linko'dan mustaqil: sinxron yiqilsa ham yopilaversin
   let shifts: { ended: number } | { error: string }
   try {
@@ -75,9 +70,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     orders = { error: error instanceof Error ? error.message : 'xato' }
   }
 
+  // Do'konlar (Linko markets) — yangi va o'zgarganlari; yiqilsa katalog sinxroni davom etadi
+  let shops: Record<string, unknown>
+  try {
+    shops = await shopsSync(null, { full: req.query.full === '1' })
+  } catch (error) {
+    console.error('[linko-cron] do‘konlar sinxronlanmadi:', error)
+    shops = { error: error instanceof Error ? error.message : 'xato' }
+  }
+
   try {
     const result = await linkoPull(null, { full: req.query.full === '1' })
-    return res.status(200).json({ ...result, shifts, orders })
+    return res.status(200).json({ ...result, shifts, orders, shops })
   } catch (error) {
     // Sinxron yiqilsa do'kon ishlashda davom etadi — faqat log va 200 emas 500
     console.error('[linko-cron] xato:', error)

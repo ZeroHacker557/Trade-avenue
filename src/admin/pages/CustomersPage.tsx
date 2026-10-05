@@ -1,7 +1,7 @@
-import { Clock, ExternalLink, LogIn, Megaphone, Phone, Search, ShoppingBag, ShoppingCart, Users } from 'lucide-react'
+import { Clock, ExternalLink, LogIn, Phone, Search, ShoppingBag, ShoppingCart, Store, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatPrice } from '../../data'
-import { useCustomers, useOrders, useProducts, type AdminOrder, type CustomerRow, type ProductRow } from '../lib/live'
+import { useCustomers, useOrders, useProducts, useShops, type AdminOrder, type CustomerRow, type ProductRow } from '../lib/live'
 import { Modal } from '../components/Modal'
 import { StatusBadge } from '../components/StatusBadge'
 import { ago, dateTime } from '../lib/dates'
@@ -17,13 +17,14 @@ const fullName = (c: CustomerRow) => [c.first_name, c.last_name].filter(Boolean)
 /** @username — bo'lmasa Telegram ID. */
 const handle = (c: CustomerRow) => (c.username ? `@${c.username}` : `ID ${c.id}`)
 const cartCount = (c: CustomerRow) => (c.cart ?? []).reduce((s, r) => s + (Number(r.quantity) || 0), 0)
-const sourceLabel = (s?: string) => (!s ? '—' : s === 'organic' ? 'Organik (havolasiz)' : s === 'channel' ? 'Kanal tugmasi' : s)
 
 export function CustomersPage() {
   const { customers, loading } = useCustomers()
   // Mijozning umrboqiy xaridi — butun tarix kerak
   const { orders } = useOrders(undefined, 'all')
   const { products } = useProducts()
+  const { shops } = useShops()
+  const shopName = useMemo(() => new Map(shops.map((s) => [s.id, s.name])), [shops])
   const [query, setQuery] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
@@ -59,7 +60,7 @@ export function CustomersPage() {
 
   const totals = useMemo(
     () => ({
-      withPhone: customers.filter((c) => c.phone).length,
+      withShop: customers.filter((c) => (c.shopIds ?? []).length > 0).length,
       buyers: [...stats.values()].filter((s) => s.count > 0).length,
       withCart: customers.filter((c) => cartCount(c) > 0).length,
     }),
@@ -71,8 +72,8 @@ export function CustomersPage() {
   return (
     <>
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card label="Jami mijozlar" value={String(customers.length)} />
-        <Card label="Telefon qoldirganlar" value={String(totals.withPhone)} />
+        <Card label="Jami foydalanuvchilar" value={String(customers.length)} />
+        <Card label="Do‘konga ulanganlar" value={String(totals.withShop)} />
         <Card label="Buyurtma berganlar" value={String(totals.buyers)} />
         <Card label="Savatida mahsulot bor" value={String(totals.withCart)} />
       </div>
@@ -94,7 +95,7 @@ export function CustomersPage() {
       ) : visible.length === 0 ? (
         <div className="adm-card adm-empty">
           <Users size={30} />
-          <p className="text-sm font-semibold">Mijoz topilmadi</p>
+          <p className="text-sm font-semibold">Foydalanuvchi topilmadi</p>
         </div>
       ) : (
         <>
@@ -132,9 +133,9 @@ export function CustomersPage() {
               <table className="adm-table">
                 <thead>
                   <tr>
-                    <th>Mijoz</th>
+                    <th>Foydalanuvchi</th>
                     <th>Username / ID</th>
-                    <th>Telefon</th>
+                    <th>Do‘koni</th>
                     <th>Buyurtmalar</th>
                     <th>Sarflagan</th>
                     <th>Savat</th>
@@ -151,7 +152,7 @@ export function CustomersPage() {
                         </span>
                       </td>
                       <td style={{ color: 'var(--muted)' }}>{handle(customer)}</td>
-                      <td style={{ color: 'var(--muted)' }}>{customer.phone || '—'}</td>
+                      <td style={{ color: 'var(--muted)' }}>{(customer.shopIds ?? []).map((id) => shopName.get(id) || id).join(', ') || '—'}</td>
                       <td className="font-bold">{customer.count}</td>
                       <td className="font-bold">{formatPrice(customer.spent)}</td>
                       <td>
@@ -178,6 +179,7 @@ export function CustomersPage() {
           stats={stats.get(open.id) || EMPTY_STATS}
           orders={orders.filter((o) => String(o.userId) === open.id)}
           products={products}
+          shopNames={(open.shopIds ?? []).map((id) => shopName.get(id) || id)}
           now={now}
           onClose={() => setOpenId(null)}
         />
@@ -189,20 +191,21 @@ export function CustomersPage() {
 // ─── Mijozning to'liq ma'lumoti ───────────────────────────────
 
 function CustomerDetail({
-  customer, stats, orders, products, now, onClose,
+  customer, stats, orders, products, shopNames, now, onClose,
 }: {
   customer: CustomerRow
   stats: Stats
   orders: AdminOrder[]
   products: ProductRow[]
+  shopNames: string[]
   now: number
   onClose: () => void
 }) {
   const name = fullName(customer)
   const tgLink = customer.username ? `https://t.me/${customer.username}` : `tg://user?id=${customer.id}`
-  // Birinchi kirish: yangi yozuv bo'lmasa — botga birinchi kelgani yoki birinchi buyurtmasi
-  const firstSeen = customer.firstSeenAt || customer.firstSourceAt || stats.first || ''
-  const firstSeenNote = customer.firstSeenAt ? '' : customer.firstSourceAt ? ' (botga kelgan)' : stats.first ? ' (birinchi buyurtma)' : ''
+  // Birinchi kirish: yozuv bo'lmasa — birinchi buyurtmasi
+  const firstSeen = customer.firstSeenAt || stats.first || ''
+  const firstSeenNote = customer.firstSeenAt ? '' : stats.first ? ' (birinchi buyurtma)' : ''
 
   const byId = useMemo(() => new Map(products.map((p) => [String(p.id), p])), [products])
   const cart = (customer.cart ?? []).map((row) => {
@@ -240,7 +243,7 @@ function CustomerDetail({
         <Info icon={<LogIn size={15} />} label="Birinchi kirgan" value={dateTime(firstSeen)} hint={firstSeen ? `${ago(firstSeen, now)}${firstSeenNote}` : 'ma’lumot yo‘q'} />
         <Info icon={<Clock size={15} />} label="Oxirgi kirgan" value={dateTime(customer.lastActive)} hint={ago(customer.lastActive, now)} />
         <Info icon={<ShoppingBag size={15} />} label="Buyurtmalar" value={`${stats.count} ta`} hint={formatPrice(stats.spent)} />
-        <Info icon={<Megaphone size={15} />} label="Qayerdan kelgan" value={sourceLabel(customer.firstSource || customer.lastSource)} hint={customer.lastSource && customer.lastSource !== customer.firstSource ? `oxirgi: ${sourceLabel(customer.lastSource)}` : ''} />
+        <Info icon={<Store size={15} />} label="Do‘konlari" value={shopNames.length ? `${shopNames.length} ta` : 'ulanmagan'} hint={shopNames.join(', ')} />
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">

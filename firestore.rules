@@ -43,29 +43,54 @@ service cloud.firestore {
       return role() == 'owner';
     }
 
-    // ── Katalog: hamma o'qiydi, hech kim yozmaydi ────────────
+    // ── Do'kon a'zosi ───────────────────────────────────────
+    // Telefon + kod bilan kirgan do'konchi (api/shop.ts). Claim'larni
+    // faqat server yozadi (api/_lib/shops.ts → syncUserClaims).
+    function myShops() {
+      return request.auth != null ? request.auth.token.get('shops', []) : [];
+    }
+    function hasShop() {
+      return myShops().size() > 0;
+    }
+    // Katalog: do'konchi yoki xodim
+    function canBrowse() {
+      return hasShop() || isStaff();
+    }
+
+    // ── Katalog: faqat do'konga ulanganlar va xodimlar ───────
+    // Ulgurji narxlar begonaga ko'rinmasin — kirishdan oldin katalog yopiq.
     match /products/{productId} {
-      allow read: if true;
-      allow write: if false;   // faqat bot (Admin SDK)
+      allow read: if canBrowse();
+      allow write: if false;   // faqat server (Admin SDK)
     }
 
     match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if false;   // faqat bot (Admin SDK)
+      allow read: if canBrowse();
+      allow write: if false;
     }
 
-    // Bo'limlar — kategoriya ichidagi guruhlar. Katalogda sarlavha
-    // bo'lib chiqadi, shuning uchun o'qish ochiq.
+    // Bo'limlar — kategoriya ichidagi guruhlar (katalogda sarlavha)
     match /sections/{sectionId} {
-      allow read: if true;
+      allow read: if canBrowse();
       allow write: if false;   // faqat /api/admin/action
     }
 
-    // Vaqtli aksiyalar — katalogda chegirma narxi va taymer bo'lib
-    // ko'rinadi, shuning uchun o'qish ochiq. Narxni baribir server hisoblaydi.
+    // Vaqtli aksiyalar — narxni baribir server hisoblaydi
     match /promotions/{promotionId} {
-      allow read: if true;
+      allow read: if canBrowse();
       allow write: if false;   // faqat /api/admin/action
+    }
+
+    // ── Do'konlar ───────────────────────────────────────────
+    // Do'konchi faqat o'zi ulangan do'konlarni ko'radi (filiallar).
+    // Kodlar alohida to'plamda — faqat adminga.
+    match /shops/{shopId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.memberIds);
+      allow write: if false;   // faqat server (api/shop.ts, /api/admin/action)
+    }
+    match /shop_codes/{shopId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Ochilish reklamasi (ads/splash) — ilova ochilganda, mijoz tizimga
@@ -100,6 +125,8 @@ service cloud.firestore {
       // Mijoz — faqat o'zinikini; admin — hammasini; kuryer — faqat
       // o'ziga biriktirilganini.
       allow read: if (signedIn() && resource.data.userId == int(request.auth.uid))
+                  // Shu do'konning boshqa akkauntlari ham (egasi va sotuvchisi)
+                  || (signedIn() && resource.data.get('shopId', '') in myShops())
                   || isAdmin()
                   || (role() == 'courier' && resource.data.get('courierId', '') == request.auth.uid);
       // Yozish har doim server orqali: /api/orders va /api/admin/*.
@@ -119,16 +146,6 @@ service cloud.firestore {
     match /dispatch/{orderId} {
       allow read: if isStaff();
       allow write: if false;   // faqat server (Admin SDK)
-    }
-
-    // ── Sharhlar ────────────────────────────────────────────
-    // Hamma o'qiydi. Yozishda: faqat o'z nomidan, 1-5 oralig'ida baho.
-    // Sharhni /api/reviews yaratadi: u sotib olganini tekshiradi va
-    // mahsulotdagi reytingni qayta hisoblaydi. Mijoz to'g'ridan-to'g'ri
-    // yoza olmaydi (F-09, 9- va 10-bandlar).
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow write: if false;
     }
 
     // ── Bildirishnomalar ────────────────────────────────────
@@ -169,7 +186,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Yuqorida sanalmagan hamma narsa yopiq
     // ── Xodimlar ro'yxati ───────────────────────────────────
     // O'qish: har xodim o'zinikini ko'radi, ega hammasini.
     // Yozish: faqat Admin SDK (/api/admin/*) — aks holda xodim
@@ -218,15 +234,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── «Kuryer qayerda» — mijoz faqat O'Z buyurtmasini ko'radi ──
-    // Server faqat «Yetkazilmoqda» holatida yozadi va buyurtma
-    // yopilishi bilan o'chiradi.
-    match /order_tracking/{orderId} {
-      allow read: if isAdmin()
-                  || (signedIn() && resource.data.userId == int(request.auth.uid));
-      allow write: if false;
-    }
-
+    // Yuqorida sanalmagan hamma narsa yopiq (login_attempts va h.k.)
     match /{document=**} {
       allow read, write: if false;
     }

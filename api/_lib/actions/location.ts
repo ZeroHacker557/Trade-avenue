@@ -7,8 +7,6 @@ import { CodedError } from '../errors.js'
  * Kuryerning jonli joylashuvi.
  *
  *   courier_locations/{staffUid}  — admin xaritasi (faqat admin o'qiydi)
- *   order_tracking/{orderId}      — mijozning «Kuryer qayerda» xaritasi
- *                                   (faqat buyurtma egasi o'qiydi)
  *
  * Ikki manba bor:
  *   live — Telegram'ning «Jonli joylashuv»i: kuryer botga bir marta
@@ -21,9 +19,6 @@ import { CodedError } from '../errors.js'
  * buyurtma bo'lsa saqlanadi. Smena tugab, yetkazadigani qolmasa —
  * admin xaritasidan ham o'chadi.
  *
- * Mijozga faqat «Yetkazilmoqda» holatidagi O'Z buyurtmasi bo'yicha
- * ko'rinadi. Buyurtma yopilishi bilan `order_tracking` o'chiriladi
- * (orders.ts → applyStatusEffects).
  */
 
 type Body = Record<string, unknown>
@@ -113,57 +108,13 @@ export function etaFromPlan(plan: StopPlan): number {
   return Math.min(180, Math.max(10, minutes))
 }
 
-type OrderLite = { status?: string; userId?: number; customer?: { location?: Point | null } }
-
-function orderPoint(order: OrderLite): Point | null {
-  const loc = order.customer?.location
-  return loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? { lat: loc.lat, lng: loc.lng } : null
-}
+type OrderLite = { status?: string; userId?: number }
 
 /** Kuryerning yo'ldagi buyurtmalari. */
 async function activeOrders(uid: string) {
   const db = await adminDb()
   const snap = await db.collection('orders').where('courierId', '==', uid).where('status', '==', 'Yetkazilmoqda').get()
   return snap.docs.map((doc) => ({ id: doc.id, data: doc.data() as OrderLite }))
-}
-
-/**
- * Yo'ldagi har buyurtma mijozi uchun kuzatuv: kuryer qayerda va undan
- * oldin nechta manzil bor (mijoz boshqa mijozlarning joyini ko'rmaydi —
- * faqat soni va umumiy masofa).
- */
-async function writeTracking(
-  staff: Pick<Staff, 'uid' | 'name'> & { phone?: string | null },
-  point: LocationPoint,
-  source: LocationSource,
-  at: string,
-  orders: { id: string; data: OrderLite }[],
-): Promise<number> {
-  const db = await adminDb()
-  const plan = planStops(point, orders.map((o) => ({ id: o.id, point: orderPoint(o.data) })))
-  const batch = db.batch()
-  let tracked = 0
-  for (const order of orders) {
-    if (!order.data.userId) continue
-    const stop = plan.get(order.id)
-    batch.set(db.collection('order_tracking').doc(order.id), {
-      userId: order.data.userId,
-      courierUid: staff.uid,
-      courierName: staff.name,
-      // Mijoz xaritasida ism yonida raqam — buyurtmada yozilmagan bo'lsa ham
-      courierPhone: staff.phone ?? null,
-      lat: point.lat,
-      lng: point.lng,
-      heading: point.heading ?? null,
-      source,
-      at,
-      stopsBefore: stop?.stopsBefore ?? 0,
-      viaKm: stop?.viaKm ?? null,
-    })
-    tracked++
-  }
-  if (tracked) await batch.commit()
-  return tracked
 }
 
 /** Smena ochiqmi (00:00 da o'zi yopiladi). */
@@ -173,8 +124,7 @@ async function onShift(uid: string): Promise<boolean> {
 }
 
 /**
- * Joylashuvni yozadi: kuryer hujjati va uning yo'ldagi har buyurtmasi
- * uchun kuzatuv hujjati.
+ * Joylashuvni yozadi (admin xaritasi uchun kuryer hujjati).
  *
  * `liveUntil` — Telegram jonli ulashishi qachongacha (faqat `live`).
  * Ilova manbasi jonli ulashishni «bosib» ketmasin: jonli ulashish
@@ -194,12 +144,12 @@ export async function saveCourierLocation(
 
   const orders = await activeOrders(staff.uid)
   // Dam olayotgan va yetkazadigani yo'q kuryerning joyi saqlanmaydi
-  if (!orders.length && !(await onShift(staff.uid))) return { saved: false, reason: 'off_shift', tracked: 0 }
+  if (!orders.length && !(await onShift(staff.uid))) return { saved: false, reason: 'off_shift' }
 
   if (source === 'app') {
     const prev = (await ref.get()).data() as { source?: string; at?: string } | undefined
     const recentLive = prev?.source === 'live' && Date.now() - Date.parse(prev.at || '') < 60_000
-    if (recentLive) return { saved: false, reason: 'live', tracked: 0 }
+    if (recentLive) return { saved: false, reason: 'live' }
   }
 
   await ref.set({
@@ -218,8 +168,7 @@ export async function saveCourierLocation(
     ...(source === 'live' ? { liveUntil } : {}),
   }, { merge: true })
 
-  const tracked = await writeTracking({ ...staff, phone }, point, source, at, orders)
-  return { saved: true, tracked }
+  return { saved: true }
 }
 
 /** Mini app: ochiq turganda joylashuv (smenadagi kuryer). */
@@ -245,31 +194,16 @@ export async function lastKnownPoint(uid: string): Promise<(LocationPoint & { so
 }
 
 /**
- * Kuryerning buyurtmalari o'zgardi (oldi, yetkazdi, bekor bo'ldi) —
- * so'nggi ma'lum joyidan kuzatuv qayta yoziladi: yangi olingan
- * buyurtma mijozi kuryerni darhol ko'radi, qolganlarida «sizdan oldin
- * N ta manzil» yangilanadi.
- *
- * Smena tugagan va yetkazadigani qolmagan bo'lsa — joylashuv o'chadi.
- * Xato tashlamaydi.
+ * Kuryerning buyurtmalari o'zgardi (yetkazdi, bekor bo'ldi): smena
+ * tugagan va yetkazadigani qolmagan bo'lsa — joylashuv admin xaritasidan
+ * o'chadi. Xato tashlamaydi.
  */
-export async function refreshCourierTracking(uid: string) {
+export async function refreshCourierLocation(uid: string) {
   try {
-    const db = await adminDb()
-    const orders = await activeOrders(uid)
-    if (!orders.length) {
-      if (!(await onShift(uid))) await db.collection('courier_locations').doc(uid).delete()
-      return
-    }
-    const snap = await db.collection('courier_locations').doc(uid).get()
-    const loc = snap.data() as StoredLocation | undefined
-    const point = await lastKnownPoint(uid)
-    if (!point) return
-    const staff = ((await db.collection('staff').doc(uid).get()).data() || {}) as { phone?: string; telegramId?: number }
-    const phone = await courierPhone(staff)
-    await writeTracking({ uid, name: loc?.name || 'Kuryer', phone }, point, point.source, point.at, orders)
+    if ((await activeOrders(uid)).length || (await onShift(uid))) return
+    await (await adminDb()).collection('courier_locations').doc(uid).delete()
   } catch (error) {
-    console.error('[location] kuzatuv yangilanmadi:', error)
+    console.error('[location] joylashuv yangilanmadi:', error)
   }
 }
 
@@ -287,15 +221,6 @@ export async function endShiftLocation(uid: string): Promise<{ liveWasOn: boolea
   const busy = (await activeOrders(uid)).length > 0
   if (!busy && loc) await ref.delete()
   return { liveWasOn, cleared: !busy }
-}
-
-/** Buyurtma yopildi — mijoz kuryerning joyini endi ko'rmasin. */
-export async function clearOrderTracking(orderId: string) {
-  try {
-    await (await adminDb()).collection('order_tracking').doc(orderId).delete()
-  } catch (error) {
-    console.error('[location] kuzatuv o‘chirilmadi:', error)
-  }
 }
 
 /** Kuryer profili uchun: jonli ulashish holati. */

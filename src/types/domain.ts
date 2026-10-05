@@ -1,6 +1,6 @@
 export type AppPage =
   | 'home' | 'catalog' | 'favorites' | 'orders' | 'profile'
-  | 'detail' | 'checkout' | 'addresses' | 'profile_edit'
+  | 'detail' | 'checkout' | 'profile_edit'
   | 'notifications' | 'language' | 'support' | 'receipt'
 
 /**
@@ -147,6 +147,9 @@ export type Order = {
   notified?: boolean
   /** Eski yozuvlarda formatlangan sana matni bo'lishi mumkin. */
   date?: string
+  /** Qaysi do'kon nomidan (server yozadi). */
+  shopId?: string
+  shop?: Pick<Shop, 'id' | 'name' | 'address' | 'location' | 'phones'> & { agentName?: string }
   /** Kuryer (server yozadi). */
   courierId?: string | null
   courierName?: string | null
@@ -158,6 +161,21 @@ export type Order = {
   /** Kuryer «Yetib keldim» bosgan vaqt. */
   arrivedAt?: string | null
   deliveredAt?: string | null
+}
+
+/**
+ * Do'kon — foydalanuvchi telefon + kod bilan ulangan savdo nuqtasi.
+ * Mini app faqat shu ma'lumotni ko'radi (kod va a'zolar ro'yxatisiz).
+ */
+export type Shop = {
+  id: string
+  name: string
+  address: string
+  location: { lat: number; lng: number } | null
+  /** Ko'rinish uchun: «+998 90 123 45 67». */
+  phones: string[]
+  agentName: string
+  priceListId: number
 }
 
 /** Firestore'ga yozishdan oldingi buyurtma — id va raqam server tomonda beriladi. */
@@ -213,13 +231,6 @@ export type CartItem = {
   quantity: number
 }
 
-export type Address = {
-  id: string
-  name: string
-  address: string
-  location: { lat: number; lng: number }
-}
-
 export type UserProfile = {
   id: number
   first_name: string
@@ -227,7 +238,8 @@ export type UserProfile = {
   username?: string
   photo_url?: string
   phone?: string
-  addresses: Address[]
+  /** Ulangan do'konlar (server yozadi: api/_lib/shops.ts → syncUserClaims). */
+  shopIds?: string[]
   /** Tanlangan til — qurilmalar orasida sinxron bo'lishi uchun. */
   language?: 'uz' | 'ru'
   /**

@@ -6,10 +6,13 @@
  */
 export class CodedError extends Error {
   code: string
+  /** Matndagi son yoki nom — ilova tarjimaga qo'yadi (masalan `{left}`). */
+  params?: Record<string, string | number>
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, params?: Record<string, string | number>) {
     super(message)
     this.code = code
+    this.params = params
   }
 }
 

@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { datedNumber } from '../utils/order-label'
-import { Bell, Bike, ChevronRight, CircleHelp, ClipboardList, Languages, MapPin, Moon, Sun, UserRound } from 'lucide-react'
+import { Bell, Bike, ChevronRight, CircleHelp, ClipboardList, Languages, Moon, Sun, UserRound } from 'lucide-react'
 import { formatPrice } from '../data'
 import { formatOrderDate } from '../utils/date'
 import { IconButton } from '../components/ui/IconButton'
@@ -9,7 +9,8 @@ import { OrderCardSkeleton, TextSkeleton } from '../components/ui/LoadingSkeleto
 import { getTelegramUser } from '../utils/telegram'
 import { useI18n, type TranslationKey } from '../i18n'
 import type { ThemeMode } from '../utils/theme'
-import type { AppPage, Order, UserProfile } from '../types/domain'
+import type { AppPage, Order, Shop, UserProfile } from '../types/domain'
+import { ShopChip } from '../components/shop/ShopSheet'
 import { PageTitle } from '../components/layout/PageTitle'
 
 type Option = {
@@ -31,9 +32,14 @@ type Props = {
   onNotify: (msg: string) => void
   /** Faqat kuryerlarga — do'kondan kuryer sahifasiga qaytish. */
   onOpenCourier?: () => void
+  /** Faol do'kon va «Do'konlarim» oynasi. */
+  shop: Shop
+  onOpenShops: () => void
 }
 
-export function ProfilePage({ profile, orders, ordersReady, theme, onToggleTheme, onNavigate, onNotify, onOpenCourier }: Props) {
+export function ProfilePage({
+  profile, orders, ordersReady, theme, onToggleTheme, onNavigate, onNotify, onOpenCourier, shop, onOpenShops,
+}: Props) {
   const { t, lang } = useI18n()
   const tgUser = getTelegramUser()
 
@@ -51,7 +57,6 @@ export function ProfilePage({ profile, orders, ordersReady, theme, onToggleTheme
 
   const options: Option[] = [
     { icon: UserRound, titleKey: 'profile.personal', subKey: 'profile.personalSub', page: 'profile_edit' },
-    { icon: MapPin, titleKey: 'profile.addresses', subKey: 'profile.addressesSub', page: 'addresses' },
     { icon: ClipboardList, titleKey: 'profile.history', subKey: 'profile.historySub', page: 'orders' },
     {
       icon: Languages,
@@ -106,6 +111,12 @@ export function ProfilePage({ profile, orders, ordersReady, theme, onToggleTheme
         </div>
         <ChevronRight style={{ color: 'var(--muted)' }} />
       </button>
+
+      {/* Faol do'kon — bosilsa filiallar ro'yxati */}
+      <section className="mx-5 mt-3 sm:mx-10" style={{ animation: 'fadeInUp 0.4s ease 0.02s both' }}>
+        <p className="mb-1.5 pl-1 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{t('shop.current')}</p>
+        <ShopChip shop={shop} onClick={onOpenShops} />
+      </section>
 
       {onOpenCourier && (
         <button

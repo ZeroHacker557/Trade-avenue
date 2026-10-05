@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { productThumb } from '../utils/product-image'
 import {
-  ArrowLeft, Banknote, Check, Copy, CreditCard, Loader2, MapPin, Pencil,
-  MessageSquare, Phone, Send, ShoppingBag, Tag, User, UserRound,
+  ArrowLeft, Banknote, Check, Copy, CreditCard, Loader2, MapPin,
+  MessageSquare, Phone, Send, ShoppingBag, Store, Tag, User, UserRound,
 } from 'lucide-react'
 import { formatPrice } from '../data'
 import { hapticFeedback } from '../utils/telegram'
@@ -10,36 +10,9 @@ import { getPaymentSettings, getDeliverySettings } from '../lib/firebase'
 import { apiErrorText } from '../utils/api-error'
 import { apiPost } from '../lib/api'
 import { useT } from '../i18n'
-import type { Address, AppPage, DeliverySettings, OrderForm, PaymentSettings, Product, UserProfile } from '../types/domain'
+import type { DeliverySettings, OrderForm, PaymentSettings, Product, Shop, UserProfile } from '../types/domain'
 import { PageTitle } from '../components/layout/PageTitle'
-import { AddressConfirmSheet } from '../components/checkout/AddressConfirmSheet'
 import { ReceiptSheet, type ReceiptUpload } from '../components/checkout/ReceiptSheet'
-
-/*
- * Sahifa har ochilganda qayta yaratiladi, shuning uchun «oldin qaysi
- * manzillar bor edi» va «qaysi biri tanlangan edi» modul darajasida
- * eslab qolinadi: manzil sahifasidan qaytilganda yangi qo'shilgani o'zi
- * tanlanadi, tahrirlangani (matni o'zgargan bo'lsa ham) tanlovdan tushmaydi.
- */
-let knownAddressIds: Set<string> | null = null
-let pickedAddressId: string | null = null
-
-/**
- * DEV: `?addrDemo` — Telegram'siz brauzerda profil yuklanmaydi; tasdiqlash
- * oynasini ko'rish uchun namunaviy manzillar. Production'da `null`.
- */
-
-const DEMO_PROFILE: UserProfile | null =
-  import.meta.env.DEV && new URLSearchParams(location.search).has('addrDemo')
-    ? {
-        id: 1,
-        first_name: 'Test',
-        addresses: [
-          { id: 'd1', name: 'Uy', address: 'Toshkent, Chilonzor tumani, Bunyodkor ko‘chasi, 12-uy, 45-xonadon', location: { lat: 41.28, lng: 69.2 } },
-          { id: 'd2', name: 'Ish', address: 'Toshkent, Mirzo Ulug‘bek, Buyuk Ipak Yo‘li 7', location: { lat: 41.33, lng: 69.33 } },
-        ],
-      } as UserProfile
-    : null
 
 type AppliedPromo = {
   code: string
@@ -58,20 +31,13 @@ type Props = {
   onSubmit: (receipt?: ReceiptUpload) => Promise<boolean>
   isSubmitting: boolean
   onBack: () => void
-  onNavigate: (page: AppPage) => void
-  /** Oxirgi buyurtmadagi manzil — shu manzil o'zi tanlanadi. */
-  lastUsedAddress?: string
-  /** Manzilni tahrirlash sahifasini ochadi. */
-  onEditAddress: (addressId: string) => void
-  /** Yangi manzil — joylashuv darhol so'raladi. */
-  onAddAddress: () => void
+  /** Faol do'kon — buyurtma shu nomidan, shu manzilga. */
+  shop: Shop
 }
 
 export function CheckoutPage({
-  cartProducts, cartTotal, orderForm, onUpdateForm, onSubmit, isSubmitting, onBack, onNavigate,
-  profile: realProfile, lastUsedAddress, onEditAddress, onAddAddress,
+  cartProducts, cartTotal, orderForm, onUpdateForm, onSubmit, isSubmitting, onBack, profile, shop,
 }: Props) {
-  const profile = realProfile ?? DEMO_PROFILE
   const t = useT()
   /* Qabul qiluvchi boshqa odammi — qo'shimcha maydonlar shunga qarab ochiladi */
   const [otherRecipient, setOtherRecipient] = useState(
@@ -83,11 +49,6 @@ export function CheckoutPage({
   const [promoError, setPromoError] = useState('')
   const [payment, setPayment] = useState<PaymentSettings | null>(null)
   const [delivery, setDelivery] = useState<DeliverySettings | null>(null)
-  /** «Manzilingizni tasdiqlaysizmi?» — sahifaga har kirganda bir marta. */
-  const [confirming, setConfirming] = useState(true)
-
-  // useMemo: har renderdagi yangi bo'sh massiv effektlarni qayta ishga tushirmasin
-  const addresses = useMemo(() => profile?.addresses || [], [profile?.addresses])
 
   useEffect(() => {
     let alive = true
@@ -149,45 +110,6 @@ export function CheckoutPage({
     onUpdateForm('promoCode', undefined)
   }
 
-  const chooseAddress = useCallback((address: Address) => {
-    pickedAddressId = address.id
-    onUpdateForm('address', address.address)
-    onUpdateForm('location', address.location)
-  }, [onUpdateForm])
-
-  /*
-   * Manzil O'ZI tanlanadi. Tartib:
-   *   1) manzil sahifasida hozirgina qo'shilgani;
-   *   2) formada turgani (tahrirlangan bo'lsa — yangilangan matni bilan);
-   *   3) oxirgi buyurtmadagisi, bo'lmasa birinchisi.
-   * Mijozning ko'pchiligida bitta manzil bor — uni har safar qo'lda
-   * belgilash ortiqcha ish edi.
-   */
-  useEffect(() => {
-    // Saqlangan manzil yo'q — formada eski matn qolmasin (manzilsiz buyurtma ketib qolardi)
-    if (addresses.length === 0) {
-      if (orderForm.address || orderForm.location) {
-        onUpdateForm('address', '')
-        onUpdateForm('location', null)
-      }
-      return
-    }
-    const fresh = knownAddressIds ? addresses.find((a) => !knownAddressIds!.has(a.id)) : undefined
-    knownAddressIds = new Set(addresses.map((a) => a.id))
-    const current =
-      addresses.find((a) => a.address === orderForm.address) ??
-      addresses.find((a) => a.id === pickedAddressId)
-    const pick = fresh ?? current ?? addresses.find((a) => a.address === lastUsedAddress) ?? addresses[0]
-    const sameSpot =
-      pick.address === orderForm.address &&
-      pick.location?.lat === orderForm.location?.lat &&
-      pick.location?.lng === orderForm.location?.lng
-    if (!sameSpot) chooseAddress(pick)
-    else pickedAddressId = pick.id
-  }, [addresses, lastUsedAddress, orderForm.address, orderForm.location, chooseAddress, onUpdateForm])
-
-  const selectedAddressId = addresses.find((a) => a.address === orderForm.address)?.id ?? null
-
   /*
    * Karta (o'tkazma): kartaga pul o'tkaziladi, «Buyurtma berish» da chek
    * yuklash oynasi ochiladi — buyurtma chek bilan birga yaratiladi.
@@ -208,41 +130,37 @@ export function CheckoutPage({
     if (payment !== null && !transferOn && orderForm.paymentMethod === 'Karta') onUpdateForm('paymentMethod', 'Naqd')
   }, [payment, transferOn, orderForm.paymentMethod, onUpdateForm])
 
-  // Manzil — faqat saqlangan manzillardan biri haqiqatan tanlangan bo'lsa (matnning o'zi yetmaydi)
-  const addressOk = selectedAddressId !== null && Boolean(orderForm.address.trim())
-  const isValid = Boolean(orderForm.name.trim() && orderForm.phone.trim() && addressOk)
+  // Manzil — do'konniki (server qo'yadi); formada faqat mas'ul shaxs
+  const isValid = Boolean(orderForm.name.trim() && orderForm.phone.trim())
   const canSubmit = isValid && !isSubmitting && !belowMin
 
   /*
    * Tugma doim bosiladi: to'ldirilmagan joy bo'lsa — o'sha maydonga
    * aylantiriladi, qizil bilan belgilanadi.
    */
-  type Missing = 'name' | 'phone' | 'address'
+  type Missing = 'name' | 'phone'
   const [missing, setMissing] = useState<Missing[]>([])
   /** Har bosishda silkinish animatsiyasi qayta boshlansin. */
   const [shake, setShake] = useState(0)
   const nameRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
-  const addressRef = useRef<HTMLDivElement>(null)
   // Maydon to'ldirilishi bilan qizil belgisi ketadi
   const stillMissing = missing.filter((key) =>
     key === 'name' ? !orderForm.name.trim()
-      : key === 'phone' ? !orderForm.phone.trim()
-        : !addressOk)
+      : !orderForm.phone.trim())
 
   /** To'ldirilmaganini ko'rsatadi. `true` — hammasi joyida. */
   const checkForm = (): boolean => {
     const list: Missing[] = []
     if (!orderForm.name.trim()) list.push('name')
     if (!orderForm.phone.trim()) list.push('phone')
-    if (!addressOk) list.push('address')
     setMissing(list)
     if (!list.length) return true
 
     hapticFeedback('heavy')
     setShake((n) => n + 1)
     const first = list[0]
-    const target = first === 'name' ? nameRef.current : first === 'phone' ? phoneRef.current : addressRef.current
+    const target = first === 'name' ? nameRef.current : phoneRef.current
     try {
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       if (target instanceof HTMLInputElement) target.focus({ preventScroll: true })
@@ -388,7 +306,7 @@ export function CheckoutPage({
 
         {/* Yetkazib berish ma'lumotlari */}
         <section className="mt-6">
-          <h3 className="mb-4 font-bold" style={{ color: 'var(--ink)' }}>{t('checkout.deliveryInfo')}</h3>
+          <h3 className="mb-4 font-bold" style={{ color: 'var(--ink)' }}>{t('shop.contact')}</h3>
           <div className="space-y-5">
             <div>
               <label className="field-label">
@@ -426,86 +344,18 @@ export function CheckoutPage({
               {errorText('phone', t('checkout.fillPhone'))}
             </div>
 
-            <div
-              ref={addressRef}
-              className={stillMissing.includes('address') ? 'address-missing' + shakeClass : undefined}
-            >
-              <label className="field-label">
-                {t('checkout.address')} <span style={{ color: 'var(--danger)' }}>*</span>
-              </label>
-              {errorText('address', t('checkout.fillAddress'))}
-
-              {addresses.length === 0 ? (
-                <div
-                  className="rounded-2xl border p-4 text-center"
-                  style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
-                >
-                  <p className="mb-3 text-sm" style={{ color: 'var(--muted)' }}>{t('checkout.noAddresses')}</p>
-                  <button onClick={() => onNavigate('addresses')} className="btn-ghost mx-auto px-4 py-2 text-sm">
-                    {t('checkout.addAddress')}
-                  </button>
+            <div>
+              <label className="field-label">{t('shop.deliveryTo')}</label>
+              <div className="checkout-shop">
+                <span className="checkout-shop__icon"><Store size={19} /></span>
+                <div className="min-w-0 flex-1">
+                  <b className="block truncate text-sm" style={{ color: 'var(--ink)' }}>{shop.name}</b>
+                  <p className="mt-0.5 flex items-start gap-1 text-xs leading-snug" style={{ color: 'var(--muted)' }}>
+                    <MapPin size={13} className="mt-px shrink-0" />
+                    {shop.address || t('shop.noAddress')}
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {addresses.map((addr) => {
-                    const isSelected = orderForm.address === addr.address
-                    return (
-                      <button
-                        key={addr.id}
-                        type="button"
-                        onClick={() => {
-                          hapticFeedback('light')
-                          // Tanlangan manzil qayta bosilsa — uni tahrirlashga o'tamiz:
-                          // mijoz ko'pincha aynan shu manzilni to'g'rilamoqchi bo'ladi
-                          if (isSelected) return onEditAddress(addr.id)
-                          chooseAddress(addr)
-                        }}
-                        /* 2px chegara va yon chiziq — 1px juda nozik edi,
-                           mijoz qaysi manzil tanlanganini ilg'amasdi. */
-                        className={'address-option ' + (isSelected ? 'selected' : '')}
-                      >
-                        <div
-                          className="grid size-10 shrink-0 place-items-center rounded-full"
-                          style={{
-                            background: isSelected ? 'var(--surface)' : 'var(--surface-3)',
-                            color: isSelected ? 'var(--brand)' : 'var(--muted)',
-                          }}
-                        >
-                          <MapPin size={19} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold" style={{ color: isSelected ? 'var(--brand)' : 'var(--ink)' }}>
-                            {addr.name}
-                          </p>
-                          <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>{addr.address}</p>
-                        </div>
-                        {isSelected ? (
-                          <span
-                            className="flex shrink-0 items-center gap-1 self-center rounded-full px-2 py-1 text-[11px] font-bold"
-                            style={{ background: 'var(--brand)', color: 'var(--brand-ink)' }}
-                          >
-                            <Pencil size={12} />
-                            {t('common.edit')}
-                          </span>
-                        ) : (
-                          <span
-                            className="grid size-6 shrink-0 place-items-center self-center rounded-full border-2 transition"
-                            style={{ borderColor: 'var(--line)' }}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    )
-                  })}
-                  <button
-                    onClick={() => onNavigate('addresses')}
-                    className="mt-2 w-full rounded-2xl border border-dashed py-3 text-sm font-bold transition"
-                    style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
-                  >
-                    {t('checkout.addAnotherAddress')}
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
 
             {/* Buyurtmani boshqa odam oladimi */}
@@ -696,17 +546,6 @@ export function CheckoutPage({
         />
       )}
 
-      {/* Profil yuklangach — aks holda «manzil yo'q» deb noto'g'ri chiqardi */}
-      {confirming && profile && (
-        <AddressConfirmSheet
-          addresses={addresses}
-          selectedId={selectedAddressId}
-          onSelect={chooseAddress}
-          onConfirm={() => setConfirming(false)}
-          onEdit={(id) => { setConfirming(false); onEditAddress(id) }}
-          onAddNew={() => { setConfirming(false); onAddAddress() }}
-        />
-      )}
     </>
   )
 }

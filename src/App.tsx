@@ -4,7 +4,8 @@ import { TopBar } from './components/layout/TopBar'
 import { SearchOverlay } from './components/layout/SearchOverlay'
 import { CartDrawer } from './components/cart/CartDrawer'
 import { CartPrompt } from './components/cart/CartPrompt'
-import { AddressPrompt } from './components/address/AddressPrompt'
+import { ShopLogin } from './components/shop/ShopLogin'
+import { ShopSheet } from './components/shop/ShopSheet'
 import { SplashAd } from './components/promo/SplashAd'
 import { Toast } from './components/ui/Toast'
 import { CheckoutSuccess } from './components/ui/CheckoutSuccess'
@@ -33,14 +34,10 @@ const CourierApp = lazy(() =>
   import('./courier/CourierApp').then((m) => ({ default: m.CourierApp })),
 )
 
-// Xarita kutubxonasi (~150 KB) faqat manzil sahifasi ochilganda yuklanadi (P-01)
-const AddressesPage = lazy(() =>
-  import('./pages/AddressesPage').then((m) => ({ default: m.AddressesPage })),
-)
 
 /** Pastki menyu ko'rinmaydigan sahifalar. */
 const FULLSCREEN_PAGES = [
-  'detail', 'checkout', 'addresses', 'profile_edit', 'notifications', 'language', 'support', 'receipt',
+  'detail', 'checkout', 'profile_edit', 'notifications', 'language', 'support', 'receipt',
 ]
 
 function PageFallback() {
@@ -119,8 +116,9 @@ function App() {
     if (saved !== lang) setLang(saved)
   }, [shop.userProfile?.language, lang, setLang])
 
-  // Ochilish reklamasi ko'rinib turganda manzil taklifi kutib turadi
-  const [adVisible, setAdVisible] = useState(false)
+  // «Do'konlarim» oynasi va yangi do'kon (filial) qo'shish
+  const [shopSheet, setShopSheet] = useState(false)
+  const [addingShop, setAddingShop] = useState(false)
   const goToCatalog = () => shop.navigate('catalog')
   // Savat yopilganda ham silliq tushib ketsin — styles.css `.cart-drawer.leaving`
   const cartPresence = usePresence(shop.isCartOpen, 280)
@@ -145,10 +143,32 @@ function App() {
     )
   }
 
+  /*
+   * Do'konga ulanmagan — avval kirish (telefon + kod). Ro'yxat hali
+   * kelmagan bo'lsa kutamiz: ulangan do'konchi kirish ekranini bir lahza
+   * ham ko'rib qolmasin.
+   */
+  if (!shop.authReady || (shop.isAuthenticated && !shop.shopsReady)) {
+    return (
+      <main className="app-shell">
+        <div className="app-container"><PageFallback /></div>
+      </main>
+    )
+  }
+  if (!shop.activeShop) {
+    return (
+      <main className="app-shell">
+        <ShopLogin onLogin={shop.loginShop} defaultPhone={shop.userProfile?.phone} />
+        <Toast message={shop.toast} onClose={shop.clearToast} />
+      </main>
+    )
+  }
+  const activeShop = shop.activeShop
+
   return (
     <main className="app-shell">
       <div className="app-container">
-        {/* Tepadagi yumshoq yashil tus (faqat yorug' rejimda ko'rinadi) */}
+        {/* Tepadagi yumshoq tus (faqat yorug' rejimda ko'rinadi) */}
         <div className="app-tint" aria-hidden="true" />
 
         {/* To'liq ekranda Telegram tugmalari orasidagi sahifa nomi */}
@@ -200,12 +220,27 @@ function App() {
           />
         )}
 
-        {/* Yangi mijozga manzil taklifi — ilova ochilgach 2 soniyadan keyin */}
-        {shop.askAddress && !adVisible && (
-          <AddressPrompt
-            onHere={() => shop.openAddresses('here')}
-            onOther={() => shop.openAddresses('other')}
-            onDismiss={shop.dismissAddressPrompt}
+        {/* Do'konlarim — filiallar orasida almashish */}
+        {shopSheet && (
+          <ShopSheet
+            shops={shop.shops}
+            activeId={activeShop.id}
+            onSwitch={shop.switchShop}
+            onAdd={() => setAddingShop(true)}
+            onLeave={shop.leaveShop}
+            onClose={() => setShopSheet(false)}
+            notify={shop.notify}
+          />
+        )}
+        {addingShop && (
+          <ShopLogin
+            defaultPhone={shop.userProfile?.phone}
+            onClose={() => setAddingShop(false)}
+            onLogin={async (phone, code) => {
+              const error = await shop.loginShop(phone, code)
+              if (!error) setAddingShop(false)
+              return error
+            }}
           />
         )}
 
@@ -215,7 +250,6 @@ function App() {
           sections={shop.sections}
           onOpenCategory={shop.openCategory}
           onOpenProduct={shop.openProduct}
-          onVisibleChange={setAdVisible}
         />
 
         <div className="page-wrapper">
@@ -236,6 +270,8 @@ function App() {
                 onOpenProduct={shop.openProductById}
                 lastOrder={shop.myOrders[0]}
                 onReorder={shop.reorder}
+                shop={activeShop}
+                onOpenShops={() => setShopSheet(true)}
               />
             </div>
           )}
@@ -298,6 +334,8 @@ function App() {
                 onNavigate={shop.navigate}
                 onNotify={shop.notify}
                 onOpenCourier={courier.isCourier ? courier.openCourier : undefined}
+                shop={activeShop}
+                onOpenShops={() => setShopSheet(true)}
               />
             </div>
           )}
@@ -326,25 +364,8 @@ function App() {
               onSubmit={shop.submitOrder}
               isSubmitting={shop.isSubmitting}
               onBack={shop.goBack}
-              onNavigate={shop.navigate}
-              lastUsedAddress={shop.myOrders[0]?.customer?.address}
-              onEditAddress={(addressId) => shop.openAddresses(null, addressId)}
-              onAddAddress={() => shop.openAddresses('here')}
+              shop={activeShop}
             />
-          )}
-
-          {shop.page === 'addresses' && (
-            <div className="page-animate">
-              <Suspense fallback={<PageFallback />}>
-                <AddressesPage
-                  profile={shop.userProfile}
-                  onBack={shop.goBack}
-                  onNotify={shop.notify}
-                  intent={shop.addressIntent}
-                  editId={shop.editAddressId}
-                />
-              </Suspense>
-            </div>
           )}
 
           {shop.page === 'profile_edit' && (

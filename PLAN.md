@@ -38,10 +38,11 @@ ular mini app orqali tovar buyurtma qiladi.
       jonli kuzatish, trafik manbalari, "Miya"
 
 ### 2-bosqich — Do'kon kirishi (Y1, Y12)
-- [ ] Admin → "Do'konlar": Linko `markets/` dan sinxron, 6 belgili kod yaratish/yangilash, kod kartasini chop etish
-- [ ] Mini app: telefon + kod bilan kirish (urinishlar soni cheklangan), Telegram akkauntga bog'lanadi
-- [ ] Bir akkauntga bir nechta do'kon (filiallar) va ular orasida almashish
-- [ ] Narx va buyurtma faqat bog'langan do'konlar uchun
+- [x] Admin → "Do'konlar": Linko `markets/` dan sinxron, 6 belgili kod yaratish/yangilash, kod kartasini chop etish
+- [x] Mini app: telefon + kod bilan kirish (urinishlar soni cheklangan), Telegram akkauntga bog'lanadi
+- [x] Bir akkauntga bir nechta do'kon (filiallar) va ular orasida almashish
+- [x] Narx va buyurtma faqat bog'langan do'konlar uchun (Firestore Rules + server tekshiruvi)
+- [x] Buyurtma do'kon nomidan; Linko'ga shu do'kon (market) va uning agenti bilan ketadi
 
 ### 3-bosqich — Ulgurji savdo
 - [ ] Y2: narxlar Linko narx ro'yxatlaridan, har do'konning o'z narx ro'yxati; miqdorga qarab chegirma

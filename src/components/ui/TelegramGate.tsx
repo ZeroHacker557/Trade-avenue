@@ -28,11 +28,11 @@ export function TelegramGate() {
         </p>
 
         <p className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-          {BRAND.name} do&rsquo;koni Telegram ilovasi ichida ishlaydi. Botni oching va
+          {BRAND.name} Telegram ilovasi ichida ishlaydi. Botni oching va
           &laquo;Katalogni ochish&raquo; tugmasini bosing.
         </p>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--faint)' }}>
-          Магазин {BRAND.name} работает внутри Telegram. Откройте бота и нажмите
+          {BRAND.name} работает внутри Telegram. Откройте бота и нажмите
           &laquo;Открыть каталог&raquo;.
         </p>
 

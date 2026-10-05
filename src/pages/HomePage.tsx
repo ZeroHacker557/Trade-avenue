@@ -16,7 +16,8 @@ import { HeroSlide } from '../components/home/HeroSlide'
 import type { HomeBanner } from '../config/banners'
 import { openExternalLink } from '../utils/telegram'
 import { datedNumber } from '../utils/order-label'
-import type { AppPage, Category, Order, Product, ProductActions } from '../types/domain'
+import type { AppPage, Category, Order, Product, ProductActions, Shop } from '../types/domain'
+import { ShopChip } from '../components/shop/ShopSheet'
 
 type Props = ProductActions & {
   products: Product[]
@@ -35,12 +36,15 @@ type Props = ProductActions & {
   /** Eng oxirgi buyurtma — «Qayta buyurtma» tugmasi uchun. */
   lastOrder?: Order
   onReorder: (order: Order) => void
+  /** Faol do'kon — bosilsa «Do'konlarim» (filiallar) ochiladi. */
+  shop: Shop
+  onOpenShops: () => void
 }
 
 export function HomePage({
   products, categories, loading, promotions, onSearch, onNavigate,
   onOpenCategory, unreadNotificationsCount, banners, onOpenSection, onOpenProduct,
-  lastOrder, onReorder, ...productActions
+  lastOrder, onReorder, shop, onOpenShops, ...productActions
 }: Props) {
   const t = useT()
   const { lang } = useI18n()
@@ -151,7 +155,12 @@ export function HomePage({
         </div>
       </header>
 
-      <section className="home-search px-5 pt-5 sm:px-10">
+      {/* Faol do'kon — buyurtma shu nomidan; filiallar orasida almashish */}
+      <section className="px-5 pt-4 sm:px-10">
+        <ShopChip shop={shop} onClick={onOpenShops} />
+      </section>
+
+      <section className="home-search px-5 pt-3 sm:px-10">
         <button onClick={onSearch} className="search-trigger" style={{ color: 'var(--faint)' }}>
           <Search className="shrink-0" size={20} />
           <span className="truncate text-sm">{t('home.searchPlaceholder')}</span>

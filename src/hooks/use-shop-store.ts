@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { sortCategories } from '../config/categories'
-import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToUserOrders, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
+import { subscribeToCategories, subscribeToHomeBanners, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToShopOrders, subscribeToMyShops, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
 import type { ReceiptUpload } from '../components/checkout/ReceiptSheet'
-import { ensureSignedIn, onAuthChanged, auth } from '../lib/auth'
+import { ensureSignedIn, onAuthChanged, auth, claimedShops, refreshClaims } from '../lib/auth'
 import { apiPost } from '../lib/api'
 import { apiErrorText } from '../utils/api-error'
 import { formatPrice } from '../data'
@@ -14,7 +14,7 @@ import { countUnseenOrders } from '../utils/notifications'
 import { bestPromotion, isRunning, promoPrice, type Promotion } from '../utils/promotions'
 import { useI18n } from '../i18n'
 import type { HomeBanner } from '../config/banners'
-import type { AppPage, CartRow, Category, Order, OrderForm, Product, Section, UserProfile, Notification } from '../types/domain'
+import type { AppPage, CartRow, Category, Order, OrderForm, Product, Section, Shop, UserProfile, Notification } from '../types/domain'
 import { hapticError, hapticFeedback, hapticSuccess, initTelegram } from '../utils/telegram'
 import { applyTheme, getStoredTheme, storeTheme, type ThemeMode } from '../utils/theme'
 import { heroTransition } from '../utils/view-transition'
@@ -25,10 +25,12 @@ const ROOT_PAGES: AppPage[] = ['home', 'catalog', 'favorites', 'orders', 'profil
 
 const LIKES_KEY = 'taLikes'
 const CART_KEY = 'taCart'
-/** «Manzil qo'shasizmi?» taklifi ko'rsatilganmi (bir marta so'raladi). */
-const ADDRESS_ASK_KEY = 'taAddressAsked'
-/** Ilova tayyor bo'lgach taklifgacha kutiladigan vaqt. */
-const ADDRESS_ASK_DELAY = 2000
+/** Tanlangan do'kon (filiallar orasida) — shu qurilmada eslab qolinadi. */
+const SHOP_KEY = 'taShop'
+
+function loadShopId(): string | null {
+  try { return localStorage.getItem(SHOP_KEY) } catch { return null }
+}
 
 type CartItems = Record<string, { quantity: number; size?: string; color?: string }>
 
@@ -103,6 +105,9 @@ const DEEP_LINK = (() => {
     return { cat: null, sec: null, product: null, page: null }
   }
 })()
+
+/** Dev namunasi (`?demo`): do'kon va katalog serversiz — src/dev/demo.ts. Productionda `false`. */
+const DEMO = import.meta.env.DEV && new URLSearchParams(location.search).has('demo')
 
 function initialPage(): AppPage {
   if (DEEP_LINK.cat !== null || DEEP_LINK.sec) return 'catalog'
@@ -222,16 +227,8 @@ export function useShopStore() {
    */
   const [cartPrompt, setCartPrompt] = useState<string | null>(null)
   const toastTimer = useRef<number | null>(null)
-  const [myOrders, setMyOrders] = useState<Order[]>([])
-  /**
-   * Buyurtmalarning BIRINCHI javobi keldimi.
-   *
-   * `authReady` yetarli emas: kirish tugagach sahifa ochiladi, buyurtmalar
-   * esa Firestore'dan bir lahzadan keyin keladi. Shu oraliqda mijoz
-   * «0 ta buyurtma» va «buyurtma yo'q» ni ko'rib qolardi. Bu bayroq
-   * kelguncha skelet ko'rsatiladi.
-   */
-  const [ordersReady, setOrdersReady] = useState(false)
+  /** Do'kon buyurtmalari — qaysi do'konniki ekani bilan (almashganda eskisi ko'rinmasin). */
+  const [shopOrders, setShopOrders] = useState<{ shopId: string | null; list: Order[] }>({ shopId: null, list: [] })
   const [checkoutDone, setCheckoutDone] = useState(false)
   const checkoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** «Buyurtma qabul qilindi» oynasi — kutmasdan yopiladi. */
@@ -253,24 +250,27 @@ export function useShopStore() {
   })
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   /**
-   * Profilning BIRINCHI javobi keldimi.
-   *
-   * «Manzil qo'shasizmi?» taklifi shu bayroqqa bog'liq: profil
-   * o'qilmasidan ko'rsatilsa, manzili bor mijozga ham chiqib qolardi.
+   * Ulangan do'konlar (filiallar). `shopsReady` — birinchi javob keldimi:
+   * kelguncha kirish ekrani ko'rsatilmaydi (ulangan do'konchi uni
+   * bir lahza ko'rib qolmasin).
    */
-  const [profileReady, setProfileReady] = useState(false)
-  /** Taklif uchun 2 soniyalik kutish tugadimi. */
-  const [addressAskDue, setAddressAskDue] = useState(false)
-  const [addressAsked, setAddressAsked] = useState(() => {
-    try { return localStorage.getItem(ADDRESS_ASK_KEY) === '1' } catch { return true }
-  })
+  const [shops, setShops] = useState<Shop[]>([])
+  const [shopsReady, setShopsReady] = useState(false)
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(loadShopId)
   /**
-   * Manzil sahifasi qaysi ko'rinishda ochilsin: taklifdagi «shu yer» yoki
-   * «boshqa joy» tanlovi shu yerda saqlanadi.
+   * Token do'kon claim'larini o'z ichiga oladimi. Katalog Rules'da faqat
+   * shunda ochiladi — undan oldin obuna bo'lsak «ruxsat yo'q» bilan
+   * yopilib qolardi.
    */
-  const [addressIntent, setAddressIntent] = useState<'here' | 'other' | null>(null)
-  /** Manzillar sahifasi shu manzilni darhol tahrirga ochadi (rasmiylashtirishdan). */
-  const [editAddressId, setEditAddressId] = useState<string | null>(null)
+  const [claimsFor, setClaimsFor] = useState('')
+  /** Faol do'kon: tanlangani, u yo'q bo'lsa birinchisi. */
+  const activeShop = useMemo(
+    () => shops.find((shop) => shop.id === selectedShopId) ?? shops[0] ?? null,
+    [shops, selectedShopId],
+  )
+  const shopKey = shops.map((shop) => shop.id).join('|')
+  /** Token shu do'konlar ro'yxatini tasdiqlagan — katalog ochiq (Rules: `shops` claim). */
+  const catalogAccess = shopKey !== '' && claimsFor === shopKey
   const [notifications, setNotifications] = useState<Notification[]>([])
   /** Cheki ochilgan buyurtma. */
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -279,9 +279,14 @@ export function useShopStore() {
   // «Buyurtmalar» nishoni — holati o'zgargan, hali ko'rilmagan buyurtmalar
   const unseenOrdersCount = useMemo(() => countUnseenOrders(notifications), [notifications])
 
-  // Ochiq ma'lumot: katalog. Auth kutilmaydi — Rules'da o'qish ochiq.
+  useEffect(() => { initTelegram() }, [])
+
+  /*
+   * Katalog — faqat do'konga ulangan foydalanuvchiga (Rules: `shops` claim).
+   * Ulgurji narxlar begonaga ko'rinmasligi uchun.
+   */
   useEffect(() => {
-    initTelegram()
+    if (!catalogAccess || DEMO) return
 
     const unsubProds = subscribeToProducts(
       (fbProducts) => {
@@ -336,7 +341,40 @@ export function useShopStore() {
       unsubPromotions()
       window.clearInterval(timer)
     }
-  }, [])
+  }, [catalogAccess])
+
+  /*
+   * Do'konlar keldi — token ularni bilishi shart. Boshqa qurilmada kirgan
+   * yoki admin hozirgina ulagan bo'lsa, eski tokenda claim yo'q: bir marta
+   * majburan yangilanadi.
+   */
+  useEffect(() => {
+    if (!shopKey || DEMO) return
+    let alive = true
+    void (async () => {
+      const ids = shopKey.split('|')
+      let claimed = await claimedShops().catch(() => [] as string[])
+      if (!ids.every((id) => claimed.includes(id))) claimed = await refreshClaims().catch(() => claimed)
+      if (alive && claimed.length > 0) setClaimsFor(shopKey)
+    })()
+    return () => { alive = false }
+  }, [shopKey])
+
+  // Faol do'kon buyurtmalari — shu do'konning hamma akkauntlari bir ro'yxatni ko'radi
+  const activeShopId = activeShop?.id ?? null
+  useEffect(() => {
+    if (!activeShopId || !catalogAccess || DEMO) return
+    return subscribeToShopOrders(activeShopId, (list) => setShopOrders({ shopId: activeShopId, list }))
+  }, [activeShopId, catalogAccess])
+  const myOrders = useMemo(
+    () => (activeShopId && shopOrders.shopId === activeShopId ? shopOrders.list : []),
+    [activeShopId, shopOrders],
+  )
+  /**
+   * Buyurtmalarning BIRINCHI javobi keldimi — kelguncha skelet («0 ta
+   * buyurtma» bir lahza ham ko'rinmasin). Do'kon yo'q bo'lsa — tayyor.
+   */
+  const ordersReady = activeShopId ? shopOrders.shopId === activeShopId : shopsReady
 
   /*
    * Savat qurilmalar orasida: profildagi nusxa bir marta tiklanadi
@@ -349,20 +387,36 @@ export function useShopStore() {
   // Tizimga kirmagan holatda Rules bu kolleksiyalarni bermaydi, shuning
   // uchun umuman obuna bo'lmaymiz.
   useEffect(() => {
+    if (DEMO) {
+      let alive = true
+      void import('../dev/demo').then((demo) => {
+        if (!alive) return
+        setAuthReady(true)
+        setAuthenticated(true)
+        setShops(demo.DEMO_SHOPS)
+        setShopsReady(true)
+        setClaimsFor(demo.DEMO_SHOPS.map((shop) => shop.id).join('|'))
+        setProducts(demo.DEMO_PRODUCTS)
+        setCategories(demo.DEMO_CATEGORIES)
+        setLoading(false)
+        setShopOrders({ shopId: demo.DEMO_SHOPS[0].id, list: demo.demoOrders(demo.DEMO_SHOPS[0]) })
+      })
+      return () => { alive = false }
+    }
     ensureSignedIn()
 
-    let unsubOrders: (() => void) | undefined
+    let unsubShops: (() => void) | undefined
     let unsubProfile: (() => void) | undefined
     let unsubNotifications: (() => void) | undefined
     let unsubBanners: (() => void) | undefined
 
     const stopAll = () => {
-      unsubOrders?.()
+      unsubShops?.()
       unsubProfile?.()
       unsubNotifications?.()
       unsubBanners?.()
       unsubBanners = undefined
-      unsubOrders = undefined
+      unsubShops = undefined
       unsubProfile = undefined
       unsubNotifications = undefined
     }
@@ -373,10 +427,9 @@ export function useShopStore() {
       if (!user) {
         setAuthReady(true)
         setAuthenticated(false)
-        setProfileReady(false)
         setUserProfile(null)
-        setMyOrders([])
-        setOrdersReady(true)
+        setShops([])
+        setShopsReady(true)
         setNotifications([])
         setUnreadNotificationsCount(0)
         return
@@ -386,14 +439,18 @@ export function useShopStore() {
       setAuthReady(true)
       setAuthenticated(true)
 
-      setOrdersReady(false)
-      unsubOrders = subscribeToUserOrders(userId, (list) => {
-        setMyOrders(list)
-        setOrdersReady(true)
-      })
+      setShopsReady(false)
+      unsubShops = subscribeToMyShops(
+        user.uid,
+        (list) => {
+          setShops(list)
+          setShopsReady(true)
+        },
+        // O'qib bo'lmadi — kirish ekrani chiqadi, qayta kirish hammasini tiklaydi
+        () => setShopsReady(true),
+      )
       unsubProfile = subscribeToUserProfile(userId, (profile) => {
         if (profile) setUserProfile(profile as UserProfile)
-        setProfileReady(true)
 
         /*
          * Profildagi savat — boshqa qurilmada to'ldirilgani. Faqat BIR
@@ -489,25 +546,48 @@ export function useShopStore() {
   )
 
   /*
-   * Yangi mijoz uchun «Manzilingiz shu yermi?» taklifi.
+   * ── Do'konga kirish va filiallar ──
    *
-   * Ilova ochilishi bilan emas: mijoz avval do'konni ko'rib ulgursin,
-   * shundan keyin — 2 soniyadan so'ng — xotirjam taklif chiqadi.
-   * Bir marta: rad etilsa yoki manzil qo'shilsa qaytib bezovta qilmaydi.
+   * Server kod + telefonni tekshirib akkauntni do'konga bog'laydi va
+   * claim'larni yangilaydi; shundan keyin token majburan yangilanadi —
+   * katalog shu zahoti ochiladi. Xato bo'lsa — mijoz tilidagi matn.
    */
-  useEffect(() => {
-    if (addressAsked || !authReady || !isAuthenticated || !profileReady || loading) return
-    const timer = window.setTimeout(() => setAddressAskDue(true), ADDRESS_ASK_DELAY)
-    return () => window.clearTimeout(timer)
-  }, [addressAsked, authReady, isAuthenticated, profileReady, loading])
+  const loginShop = useCallback(async (phone: string, code: string): Promise<string | null> => {
+    try {
+      const result = await apiPost<{ shop: Shop; shops: Shop[] }>('/api/shop', { action: 'login', phone, code })
+      await refreshClaims()
+      setShops((current) => (current.some((s) => s.id === result.shop.id) ? current : result.shops))
+      setSelectedShopId(result.shop.id)
+      try { localStorage.setItem(SHOP_KEY, result.shop.id) } catch { /* xotira yopiq */ }
+      hapticSuccess()
+      return null
+    } catch (error) {
+      hapticError()
+      return apiErrorText(error, t, 'shop.loginFailed', formatPrice)
+    }
+  }, [t])
 
-  const dismissAddressPrompt = useCallback(() => {
-    setAddressAsked(true)
-    setAddressAskDue(false)
-    try { localStorage.setItem(ADDRESS_ASK_KEY, '1') } catch { /* xotira yopiq */ }
+  const switchShop = useCallback((shopId: string) => {
+    setSelectedShopId(shopId)
+    try { localStorage.setItem(SHOP_KEY, shopId) } catch { /* xotira yopiq */ }
+    hapticFeedback('medium')
   }, [])
 
+  /** Shu do'kondan chiqish — akkaunt uziladi (kodni qayta kiritib ulanish mumkin). */
+  const leaveShop = useCallback(async (shopId: string): Promise<string | null> => {
+    try {
+      await apiPost('/api/shop', { action: 'leave', shopId })
+      await refreshClaims()
+      setShops((current) => current.filter((s) => s.id !== shopId))
+      return null
+    } catch (error) {
+      hapticError()
+      return apiErrorText(error, t, 'error.saveFailed', formatPrice)
+    }
+  }, [t])
+
   /*
+   * ── Sahifa qayerdan boshlanadi ──  /*
    * ── Sahifa qayerdan boshlanadi ──
    *
    * Brauzer sahifa almashganda surilish joyini SAQLAB qoladi. Shuning uchun
@@ -558,28 +638,8 @@ export function useShopStore() {
     // Menyudan kirilgan katalog reklamadagi bo'limga qayta surilmasin
     // («orqaga» bilan qaytilganda esa bo'lim eslab qolinadi — goBack tegmaydi)
     setCatalogSection(null)
-    // Manzil sahifasiga odatdagicha kirilsa ro'yxat ochiladi; taklifdan
-    // kelingan tanlov `openAddresses` ichida shundan keyin qo'yiladi
-    setAddressIntent(null)
-    setEditAddressId(null)
     rememberScroll(page)
   }, [page, rememberScroll])
-
-  /**
-   * Manzil sahifasini kerakli ko'rinishda ochadi.
-   *
-   * `intent` — bosh sahifadagi takliftan; `addressId` berilsa o'sha manzil
-   * darhol TAHRIR holatida ochiladi (rasmiylashtirishdagi manzil bosilganda).
-   */
-  const openAddresses = useCallback(
-    (intent: 'here' | 'other' | null = null, addressId: string | null = null) => {
-      navigate('addresses')
-      // navigate tanlovni tozalaydi — shuning uchun keyin qo'yiladi
-      setAddressIntent(intent)
-      setEditAddressId(addressId)
-    },
-    [navigate],
-  )
 
   const setTheme = useCallback((mode: ThemeMode) => {
     setThemeState(mode)
@@ -861,8 +921,12 @@ export function useShopStore() {
   const submitOrder = useCallback(async (receipt?: ReceiptUpload) => {
     if (isSubmitting) return false
 
-    if (!orderForm.name.trim() || !orderForm.phone.trim() || !orderForm.address.trim()) {
+    if (!orderForm.name.trim() || !orderForm.phone.trim()) {
       notify(t('checkout.fillAll'))
+      return false
+    }
+    if (!activeShop) {
+      notify(t('error.SHOP_REQUIRED'))
       return false
     }
 
@@ -877,6 +941,7 @@ export function useShopStore() {
     try {
       await apiPost<{ id: string; orderNumber: string; total: number }>('/api/orders', {
         clientOrderId: orderKeyRef.current,
+        shopId: activeShop.id,
         // Kanal e'loni / ommaviy xabardan kelgan bo'lsa — natija o'sha e'longa yoziladi
         source: currentCampaign(),
         items: cartProducts.map(({ product, quantity, size, color }) => ({
@@ -888,8 +953,6 @@ export function useShopStore() {
         customer: {
           name: orderForm.name.trim(),
           phone: orderForm.phone.trim(),
-          address: orderForm.address.trim(),
-          location: orderForm.location,
           comment: orderForm.comment,
           paymentMethod: orderForm.paymentMethod,
           // Buyurtmani boshqa odam oladigan bo'lsa
@@ -926,20 +989,7 @@ export function useShopStore() {
     checkoutTimer.current = setTimeout(() => setCheckoutDone(false), 6000)
 
     return true
-  }, [isSubmitting, orderForm, cartProducts, notify, t])
-
-  /*
-   * Taklif faqat bosh sahifada va boshqa oyna ochiq bo'lmaganda
-   * ko'rsatiladi — savat yoki qidiruv ustidan chiqib xalaqit bermasin.
-   */
-  const askAddress =
-    addressAskDue
-    && !addressAsked
-    && (userProfile?.addresses?.length ?? 0) === 0
-    && page === 'home'
-    && !isCartOpen
-    && !isSearchOpen
-    && !checkoutDone
+  }, [isSubmitting, orderForm, cartProducts, activeShop, notify, t])
 
   return {
     page, history,
@@ -956,7 +1006,7 @@ export function useShopStore() {
     catalogCategory, catalogSection, openCategory, homeBanners, openProductById, openSectionById,
     theme, setTheme, toggleTheme,
     navigate, goBack, openProduct, toggleLike, openReceipt, selectedOrder,
-    askAddress, dismissAddressPrompt, openAddresses, addressIntent, editAddressId,
+    shops, shopsReady, activeShop, catalogAccess, loginShop, switchShop, leaveShop,
     setSearchOpen, setQuery,
     addToCart, updateCartQuantity, cartQtyOf, changeCartQty,
     openCart, closeCart, goToCheckout,

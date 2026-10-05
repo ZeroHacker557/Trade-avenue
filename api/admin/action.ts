@@ -32,6 +32,9 @@ import {
   backupDelete, backupDownload, backupInspect, backupList, backupRestore, backupRun, backupSettings,
 } from '../_lib/actions/backup.js'
 import { auditList } from '../_lib/audit.js'
+import {
+  shopCode, shopCodesAll, shopDelete, shopSave, shopSetActive, shopsSync, shopUnbind,
+} from '../_lib/actions/shops.js'
 
 type Body = Record<string, unknown>
 
@@ -40,6 +43,9 @@ function requireSupportAccess(staff: Staff) {
 }
 function requireOwner(staff: Staff) {
   if (staff.role !== 'owner') throw new Error('Bu bo‘lim faqat ega uchun')
+}
+function requireShopAccess(staff: Staff) {
+  if (!atLeast(staff.role, 'admin')) throw new Error('Do‘konlarni faqat admin boshqaradi')
 }
 function requireChannelAccess(staff: Staff) {
   if (!atLeast(staff.role, 'admin')) throw new Error('Kanalga faqat admin e’lon joylaydi')
@@ -83,6 +89,15 @@ const HANDLERS: Record<string, Handler> = {
   'section.save': (staff, body) => (requireCatalogAccess(staff), sectionSave(body)),
   'section.delete': (staff, body) => (requireCatalogAccess(staff), sectionDelete(body)),
   'catalog.layout': (staff, body) => (requireCatalogAccess(staff), catalogLayout(body)),
+
+  // Do'konlar — kirish kodlari va ulangan akkauntlar
+  'shops.sync': (staff, body) => (requireShopAccess(staff), shopsSync(staff, body)),
+  'shops.save': (staff, body) => (requireShopAccess(staff), shopSave(staff, body)),
+  'shops.code': (staff, body) => (requireShopAccess(staff), shopCode(staff, body)),
+  'shops.codesAll': (staff) => (requireShopAccess(staff), shopCodesAll(staff)),
+  'shops.unbind': (staff, body) => (requireShopAccess(staff), shopUnbind(staff, body)),
+  'shops.active': (staff, body) => (requireShopAccess(staff), shopSetActive(staff, body)),
+  'shops.delete': (staff, body) => (requireShopAccess(staff), shopDelete(staff, body)),
 
   // Odamlar
   'staff.save': staffSave,

@@ -145,7 +145,7 @@ export async function courierTake(staff: Staff, body: Body) {
 
   if (outcome === 'claimed' && order) {
     // Mijoz «Kuryer qayerda» xaritasida kuryerni darhol ko'radi —
-    // applyStatusEffects → refreshCourierTracking
+    // applyStatusEffects → refreshCourierLocation
     await applyStatusEffects(
       orderId,
       { ...order, courierId: staff.uid, courierName: staff.name, etaMinutes: eta, etaStops: stops },

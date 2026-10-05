@@ -2374,3 +2374,85 @@
 
 /* Bosh sahifa banneri — telefon kengligida oldindan ko'rish */
 .adm-banner-preview { max-width: 380px; margin: 0 auto; }
+
+/* ══════════ Do'konlar ══════════ */
+
+.adm-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Kirish kodi — ro'yxatda ixcham, tafsilotda katta */
+.shop-code-chip {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.shop-code-big {
+  flex: 1;
+  padding: 0.55rem 0.8rem;
+  border: 1.5px dashed var(--brand-line);
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+/* Kod kartalari — faqat chop etishda ko'rinadi (usePrintDoc) */
+.shop-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 86mm;
+  padding: 6mm 7mm;
+  border: 1px dashed #9aa3b2;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  color: #0f172a;
+}
+.shop-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4mm;
+  padding-bottom: 2mm;
+  border-bottom: 2px solid #1d4ed8;
+}
+.shop-card header b { font-size: 13pt; color: #1d4ed8; }
+.shop-card header span { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.08em; color: #5b6b82; }
+.shop-card h3 { margin-top: 3mm; font-size: 12pt; font-weight: 800; }
+.shop-card__addr { font-size: 8pt; color: #5b6b82; }
+.shop-card__label { margin-top: 3mm; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.08em; color: #5b6b82; }
+.shop-card__code {
+  margin-top: 1mm;
+  padding: 2mm 0;
+  border: 1.5px solid #0f172a;
+  border-radius: 3mm;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 22pt;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+.shop-card ol { margin-top: 3mm; padding-left: 4.5mm; list-style: decimal; font-size: 8pt; line-height: 1.45; }
+.shop-card footer { margin-top: auto; padding-top: 2mm; font-size: 7.5pt; color: #5b6b82; }

@@ -3,6 +3,7 @@ import { verifyInitData } from './_lib/telegram-auth.js'
 import { adminAuth, adminDb } from './_lib/firebase-admin.js'
 import { fail, requirePost } from './_lib/http.js'
 import { courierByTelegram } from './_lib/courier-staff.js'
+import { syncUserClaims } from './_lib/shops.js'
 
 /**
  * POST /api/auth   { initData: string }
@@ -60,8 +61,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { merge: true },
     )
 
-    const token = await (await adminAuth()).createCustomToken(uid, { telegramId: user.id })
-    return res.status(200).json({ token })
+    /*
+     * Bog'langan do'konlar — Firestore Rules katalog va narxlarni shu
+     * claim'lar bo'yicha ochadi. Admin do'kondan uzgan bo'lsa, shu yerda
+     * olib tashlanadi (manba — shops.memberIds).
+     */
+    const claims = await syncUserClaims(uid)
+    const token = await (await adminAuth()).createCustomToken(uid, { telegramId: user.id, ...claims })
+    return res.status(200).json({ token, shops: claims.shops })
   } catch (error) {
     console.error('[auth] xato:', error)
     return fail(res, 500, 'Autentifikatsiya amalga oshmadi')

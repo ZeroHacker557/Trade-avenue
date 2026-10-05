@@ -11,7 +11,7 @@ type Translate = (key: TranslationKey, values?: Record<string, string | number>)
  * umuman kelmasa serverning o'z matni ko'rsatiladi: eski endpointlar
  * ham ishlayversin.
  *
- * `amount` kabi son qiymatlar `format` orqali o'tadi — narx mijoz
+ * Pul qiymatlari (`amount`) `format` orqali o'tadi — narx mijoz
  * ko'rgan ko'rinishda («150 000 so'm») chiqsin.
  */
 export function apiErrorText(
@@ -28,7 +28,7 @@ export function apiErrorText(
       ? Object.fromEntries(
           Object.entries(error.params).map(([name, value]) => [
             name,
-            format && typeof value === 'number' ? format(value) : value,
+            format && name === 'amount' && typeof value === 'number' ? format(value) : value,
           ]),
         )
       : undefined

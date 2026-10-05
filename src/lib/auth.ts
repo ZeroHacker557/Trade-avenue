@@ -62,3 +62,24 @@ export async function getIdToken(): Promise<string | null> {
 export function onAuthChanged(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback)
 }
+
+/**
+ * Tokenni majburan yangilaydi — server claim'larni (bog'langan do'konlar)
+ * o'zgartirgandan keyin. Firestore Rules yangi token bilan ishlaydi:
+ * katalog va do'kon buyurtmalari shundan keyin ochiladi.
+ */
+export async function refreshClaims(): Promise<string[]> {
+  const user = auth.currentUser
+  if (!user) return []
+  const result = await user.getIdTokenResult(true)
+  const shops = result.claims.shops
+  return Array.isArray(shops) ? shops.map(String) : []
+}
+
+/** Joriy tokendagi do'konlar (yangilamasdan). */
+export async function claimedShops(): Promise<string[]> {
+  const user = auth.currentUser
+  if (!user) return []
+  const shops = (await user.getIdTokenResult()).claims.shops
+  return Array.isArray(shops) ? shops.map(String) : []
+}

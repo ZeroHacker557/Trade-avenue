@@ -7,6 +7,7 @@ import { fail, requirePost } from './_lib/http.js'
 import { isSource } from './_lib/campaigns.js'
 import { bestPromotion, promoPrice, readPromotion } from './_lib/promotions.js'
 import { formatDailyNumber, tashkentDay } from './_lib/order-number.js'
+import { formatPhone, readShop, shopOpen, shopPhones, type ShopDoc } from './_lib/shops.js'
 
 type IncomingItem = {
   productId: number | string
@@ -16,6 +17,8 @@ type IncomingItem = {
 }
 
 type IncomingOrder = {
+  /** Qaysi do'kon nomidan (foydalanuvchi bir nechta do'konga ulangan bo'lishi mumkin). */
+  shopId: string
   items: IncomingItem[]
   customer: {
     name: string
@@ -45,14 +48,18 @@ function readOrder(body: unknown): IncomingOrder {
   const customer = b?.customer
   if (!customer) throw new Error("Mijoz ma'lumoti yo'q")
 
+  const shopId = String(b?.shopId || '').trim()
+  if (!shopId) throw new Error('SHOP_REQUIRED')
+
+  // Mas'ul shaxs (buyurtma bergan odam). Manzil — do'konniki, serverda qo'yiladi.
   const name = String(customer.name || '').trim()
   const phone = String(customer.phone || '').trim()
-  const address = String(customer.address || '').trim()
-  if (!name || !phone || !address) throw new Error("Ism, telefon va manzil to'ldirilishi shart")
+  if (!name || !phone) throw new Error("Ism va telefon to'ldirilishi shart")
 
   const paymentMethod = customer.paymentMethod === 'Karta' ? 'Karta' : 'Naqd'
 
   return {
+    shopId: shopId.slice(0, 80),
     items: items.map((item) => {
       const quantity = Math.floor(Number(item.quantity))
       if (!Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
@@ -68,11 +75,9 @@ function readOrder(body: unknown): IncomingOrder {
     customer: {
       name: name.slice(0, 120),
       phone: phone.slice(0, 40),
-      address: address.slice(0, 300),
-      location:
-        customer.location && typeof customer.location.lat === 'number'
-          ? { lat: customer.location.lat, lng: customer.location.lng }
-          : null,
+      // Do'kon manzili bilan almashtiriladi (pastda)
+      address: '',
+      location: null,
       comment: String(customer.comment || '').slice(0, 500),
       paymentMethod,
       recipientName: String(customer.recipientName || '').trim().slice(0, 120),
@@ -119,11 +124,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     order = readOrder(req.body)
   } catch (error) {
+    if (error instanceof Error && error.message === 'SHOP_REQUIRED') {
+      return fail(res, 400, 'Do‘kon tanlanmagan', 'SHOP_REQUIRED')
+    }
     return fail(res, 400, error instanceof Error ? error.message : "Ma'lumot noto'g'ri")
   }
 
   const db = await adminDb()
   const userId = Number(uid)
+
+  /*
+   * Do'kon: foydalanuvchi unga ulangan va do'kon ochiq bo'lishi shart.
+   * Manba — shops.memberIds (admin uzgan bo'lsa darhol kuchga kiradi).
+   */
+  const shopSnap = await db.collection('shops').doc(order.shopId).get()
+  const shop: ShopDoc | null = shopSnap.exists ? readShop(shopSnap.id, shopSnap.data()) : null
+  if (!shop || !shop.memberIds.includes(uid)) return fail(res, 403, 'Siz bu do‘konga ulanmagansiz', 'SHOP_NOT_MEMBER')
+  if (!shopOpen(shop)) return fail(res, 403, 'Do‘kon vaqtincha bloklangan', 'SHOP_BLOCKED')
+  order.customer.address = shop.address || shop.name
+  order.customer.location = shop.location
 
   /*
    * Karta (o'tkazma): to'lov cheki buyurtma bilan BIRGA keladi — mijoz
@@ -161,13 +180,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const userRef = db.collection('users').doc(uid)
       const userSnap = await tx.get(userRef)
-
-      // Manzil — mijozning SAQLANGAN manzillaridan biri bo'lishi shart (ilovada tanlanadi).
-      // Formada eski matn qolib, manzil tanlanmasdan buyurtma ketib qolmasin.
-      const savedAddresses = userSnap.data()?.addresses
-      const addressSaved = Array.isArray(savedAddresses) &&
-        savedAddresses.some((a: { address?: unknown } | null) => String(a?.address ?? '').trim().slice(0, 300) === order.customer.address)
-      if (!addressSaved) throw new Error('ADDRESS_REQUIRED')
 
       const deliveryRef = db.collection('settings').doc('delivery')
       const deliverySnap = await tx.get(deliveryRef)
@@ -375,6 +387,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Karta (o'tkazma) — mijoz yuklagan to'lov cheki
         receipt: receiptUrl ? { url: receiptUrl, uploadedAt: new Date().toISOString() } : null,
         customer: { ...order.customer, promoCode: appliedPromo },
+        // Do'kon — buyurtma shu nomidan; nusxa: keyin o'zgarsa ham chekda shu qoladi
+        shopId: shop.id,
+        shop: {
+          id: shop.id,
+          name: shop.name,
+          address: shop.address,
+          location: shop.location,
+          phones: shopPhones(shop).map(formatPhone),
+          linkoId: shop.linkoId,
+          agentId: shop.agentId,
+          agentName: shop.agentName,
+          priceListId: shop.priceListId,
+        },
         clientOrderId: order.clientOrderId ?? null,
         source: order.source ?? null,
         userId,
@@ -438,7 +463,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const code = raw
     const messages: Record<string, string> = {
       PRODUCT_GONE: 'Savatdagi mahsulotlardan biri endi mavjud emas',
-      ADDRESS_REQUIRED: 'Yetkazish manzilini tanlang yoki qo‘shing',
+      SHOP_REQUIRED: 'Do‘kon tanlanmagan',
       PRODUCT_PRICE: "Mahsulot narxi noto'g'ri, adminga murojaat qiling",
       PROMO_NOT_FOUND: 'Bunday promokod topilmadi',
       PROMO_INACTIVE: 'Promokod faol emas',

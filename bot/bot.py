@@ -956,9 +956,8 @@ async def handle_panel_button(message: Message):
 #
 # Kuryer botga bir marta «Jonli joylashuv» yuboradi — keyin Telegram uni
 # FONDA o'zi yangilab turadi (mini app yopiq, ekran o'chiq bo'lsa ham).
-# Har yangilanish `edited_message` bo'lib keladi. Biz uni admin xaritasi
-# (courier_locations) va yo'ldagi buyurtmalar mijozlari uchun
-# (order_tracking) yozamiz. Firestore'ni ortiqcha yuklamaslik uchun bitta
+# Har yangilanish `edited_message` bo'lib keladi. Biz uni admin xaritasiga
+# (courier_locations) yozamiz. Firestore'ni ortiqcha yuklamaslik uchun bitta
 # kuryerdan ko'pi bilan har 8 soniyada bir marta yoziladi.
 
 LIVE_FOREVER = 0x7FFFFFFF          # «Men o'chirgunimcha»
@@ -970,8 +969,7 @@ SHARE_LIVE_HELP = (
     "1. Shu chatda pastdagi 📎 tugmasini bosing\n"
     "2. «Joylashuv» (Location) ni tanlang\n"
     "3. «Jonli joylashuvni ulashish» → <b>«Men o‘chirgunimcha»</b>\n\n"
-    "Shundan keyin ilova yopiq bo‘lsa ham admin sizni xaritada ko‘radi, "
-    "yo‘ldagi buyurtmangiz mijozi esa kuryer qayerdaligini kuzatib boradi.\n\n"
+    "Shundan keyin ilova yopiq bo‘lsa ham admin sizni xaritada ko‘radi.\n\n"
     "<i>Smena tugaganda xabardagi «Ulashishni to‘xtatish» ni bosing.</i>"
 )
 
@@ -1015,9 +1013,8 @@ async def handle_courier_location(message: Message, edited: bool):
     if loc.live_period:
         await message.answer(
             "✅ <b>Jonli joylashuv ulandi!</b>\n"
-            "Admin sizni xaritada ko‘radi"
-            + (f", {tracked} ta yo‘ldagi buyurtma mijozi ham kuzatib boradi." if tracked else ".")
-            + "\n\n<i>Smena tugaganda xabardagi «Ulashishni to‘xtatish» ni bosing.</i>"
+            "Admin sizni xaritada ko‘radi."
+            "\n\n<i>Smena tugaganda xabardagi «Ulashishni to‘xtatish» ni bosing.</i>"
         )
     else:
         await message.answer(

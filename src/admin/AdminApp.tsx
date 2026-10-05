@@ -21,6 +21,7 @@ import { LinkoOrdersPage } from './pages/LinkoOrdersPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { PromocodesPage } from './pages/PromocodesPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { ShopsPage } from './pages/ShopsPage'
 import { BroadcastPage } from './pages/BroadcastPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { HomeBannersPage } from './pages/HomeBannersPage'
@@ -243,6 +244,7 @@ function AdminPanel({
       {route === 'promocodes' && (can(staff.role, 'admin') ? <PromocodesPage /> : <NoAccess />)}
       {route === 'reports' && (can(staff.role, 'admin') ? <ReportsPage /> : <NoAccess />)}
 
+      {route === 'shops' && (can(staff.role, 'admin') ? <ShopsPage /> : <NoAccess />)}
       {route === 'customers' && (can(staff.role, 'admin') ? <CustomersPage /> : <NoAccess />)}
       {route === 'broadcast' && (can(staff.role, 'admin') ? <BroadcastPage /> : <NoAccess />)}
       {route === 'channel' && (can(staff.role, 'admin') ? <ChannelPage /> : <NoAccess />)}

@@ -688,30 +688,6 @@ def _distance_km(a: tuple, b: tuple) -> float:
     return 2 * 6371 * math.asin(min(1.0, math.sqrt(h)))
 
 
-def plan_stops(start: tuple, stops: list) -> dict:
-    """
-    Eng yaqin qo'shni tartibi — location.ts → planStops bilan bir xil.
-    stops: [(order_id, (lat, lng) | None)] → {order_id: (stops_before, via_km)}
-    """
-    left = [(oid, pt) for oid, pt in stops if pt is not None]
-    plan, at, km, index = {}, start, 0.0, 0
-    while left:
-        best = min(range(len(left)), key=lambda i: _distance_km(at, left[i][1]))
-        oid, pt = left.pop(best)
-        km += _distance_km(at, pt)
-        plan[oid] = (index, round(km, 2))
-        at, index = pt, index + 1
-    return plan
-
-
-def _order_point(order: dict):
-    loc = (order.get("customer") or {}).get("location") or {}
-    try:
-        return (float(loc["lat"]), float(loc["lng"]))
-    except (KeyError, TypeError, ValueError):
-        return None
-
-
 def save_courier_location(courier: dict, lat: float, lng: float, heading=None,
                           accuracy=None, live_until: str | None = None) -> int:
     """
@@ -719,13 +695,11 @@ def save_courier_location(courier: dict, lat: float, lng: float, heading=None,
     dagi saveCourierLocation bilan bir xil shaklda:
 
       courier_locations/{uid}  — admin xaritasi
-      order_tracking/{orderId} — yo'ldagi har buyurtma mijozi uchun
-                                 («sizdan oldin N ta manzil» bilan)
 
     Maxfiylik: kuryer smenada bo'lmasa va qo'lida yo'ldagi buyurtma
     bo'lmasa — hech narsa saqlanmaydi, -1 qaytadi.
 
-    Qaytaradi: nechta buyurtma kuzatuvi yangilandi (yoki -1).
+    Qaytaradi: yo'ldagi buyurtmalar soni (yoki -1).
     """
     uid = courier["uid"]
     at = datetime.now(timezone.utc).isoformat()
@@ -757,30 +731,7 @@ def save_courier_location(courier: dict, lat: float, lng: float, heading=None,
         "liveUntil": live_until,
     }, merge=True)
 
-    plan = plan_stops((lat, lng), [(oid, _order_point(order)) for oid, order in active])
-    tracked = 0
-    batch = db.batch()
-    for oid, order in active:
-        if not order.get("userId"):
-            continue
-        stops_before, via_km = plan.get(oid, (0, None))
-        batch.set(db.collection("order_tracking").document(oid), {
-            "userId": order.get("userId"),
-            "courierUid": uid,
-            "courierName": name,
-            "courierPhone": phone,
-            "lat": lat,
-            "lng": lng,
-            "heading": heading,
-            "source": "live",
-            "at": at,
-            "stopsBefore": stops_before,
-            "viaKm": via_km,
-        })
-        tracked += 1
-    if tracked:
-        batch.commit()
-    return tracked
+    return len(active)
 
 
 def send_notification(user_id: int, title: str, body: str, type: str = 'system', order_id: str | None = None):

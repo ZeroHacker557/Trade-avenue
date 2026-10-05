@@ -5,7 +5,7 @@ import {
 import { userLang, type Lang } from '../i18n.js'
 import { restoreStock } from '../stock.js'
 import { pushOrderSafe } from './linko-orders.js'
-import { clearOrderTracking, refreshCourierTracking } from './location.js'
+import { refreshCourierLocation } from './location.js'
 import type { Staff } from '../admin-auth.js'
 import { courierPhone, shiftActive } from '../courier-staff.js'
 import { orderLabel } from '../order-number.js'
@@ -477,11 +477,9 @@ export async function applyStatusEffects(
   // Linko'dagi buyurtma holati ham yangilanadi (sozlamada yoqilgan bo'lsa)
   await pushOrderSafe(orderId, { ...order, status })
 
-  // Buyurtma yo'lda emas — mijoz endi kuryerning joyini ko'rmasin
-  if (status !== 'Yetkazilmoqda') await clearOrderTracking(orderId)
-  // Kuryerning qolgan manzillari tartibi («sizdan oldin N ta») yangilanadi
-  if (order.courierId && (order.status === 'Yetkazilmoqda' || status === 'Yetkazilmoqda')) {
-    await refreshCourierTracking(order.courierId)
+  // Yetkazadigani qolmagan, smenasi yopiq kuryer xaritadan tushadi
+  if (order.courierId && order.status === 'Yetkazilmoqda' && status !== 'Yetkazilmoqda') {
+    await refreshCourierLocation(order.courierId)
   }
 
   // Kuryer ilovalari ro'yxatni darhol yangilasin

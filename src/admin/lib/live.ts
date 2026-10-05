@@ -181,11 +181,8 @@ export type CustomerRow = {
   /** Savat — ilova sinxronlaydi (key: `${productId}_${size}_${color}`). */
   cart?: { key: string; quantity: number; size?: string; color?: string }[]
   cartUpdatedAt?: string
-  /** Botga qayerdan kelgan (reklama havolasi). */
-  firstSource?: string
-  firstSourceAt?: string
-  lastSource?: string
-  lastSourceAt?: string
+  /** Ulangan do'konlar (server yozadi). */
+  shopIds?: string[]
 }
 
 export function useCustomers() {
@@ -745,4 +742,112 @@ export function useHomeBanners() {
     [],
   )
   return { banners, loading }
+}
+
+/* ─── Do'konlar ──────────────────────────────────────────────── */
+
+export type ShopRow = {
+  id: string
+  linkoId: number
+  name: string
+  phones: string[]
+  extraPhones: string[]
+  address: string
+  location: { lat: number; lng: number } | null
+  agentId: number
+  agentName: string
+  priceListId: number
+  priceListName: string
+  marketTypeName: string
+  note: string
+  /** Admin bloki. */
+  active: boolean
+  /** Linko'da faolmi. */
+  linkoActive: boolean
+  memberIds: string[]
+  hasCode: boolean
+  codeIssuedAt: string | null
+  source: 'linko' | 'manual'
+  createdAt: string
+  syncedAt: string | null
+}
+
+const NO_SHOPS: ShopRow[] = []
+
+function readShopRow(id: string, d: Record<string, unknown>): ShopRow {
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : [])
+  const loc = d.location as { lat?: unknown; lng?: unknown } | null | undefined
+  return {
+    id,
+    linkoId: Number(d.linkoId) || 0,
+    name: String(d.name || ''),
+    phones: list(d.phones),
+    extraPhones: list(d.extraPhones),
+    address: String(d.address || ''),
+    location: loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))
+      ? { lat: Number(loc.lat), lng: Number(loc.lng) }
+      : null,
+    agentId: Number(d.agentId) || 0,
+    agentName: String(d.agentName || ''),
+    priceListId: Number(d.priceListId) || 0,
+    priceListName: String(d.priceListName || ''),
+    marketTypeName: String(d.marketTypeName || ''),
+    note: String(d.note || ''),
+    active: d.active !== false,
+    linkoActive: d.linkoActive !== false,
+    memberIds: list(d.memberIds),
+    hasCode: d.hasCode === true,
+    codeIssuedAt: typeof d.codeIssuedAt === 'string' ? d.codeIssuedAt : null,
+    source: d.source === 'manual' ? 'manual' : 'linko',
+    createdAt: String(d.createdAt || ''),
+    syncedAt: typeof d.syncedAt === 'string' ? d.syncedAt : null,
+  }
+}
+
+/** Hamma do'konlar — admin → «Do'konlar». */
+export function useShops() {
+  const { value: shops, loading } = useSharedSnapshot<ShopRow[]>('shops', NO_SHOPS, (emit, fail) =>
+    onSnapshot(
+      collection(db, 'shops'),
+      (snapshot) => {
+        const rows = snapshot.docs.map((d) => readShopRow(d.id, d.data()))
+        rows.sort((a, b) => a.name.localeCompare(b.name))
+        emit(rows)
+      },
+      fail,
+    ),
+  )
+  return { shops, loading }
+}
+
+/** Kirish kodlari: shopId → kod. Faqat adminga (Rules: shop_codes). */
+export function useShopCodes(enabled = true) {
+  const [codes, setCodes] = useState<Map<string, string>>(() => new Map())
+  useEffect(() => {
+    if (!enabled) return
+    return onSnapshot(
+      collection(db, 'shop_codes'),
+      (snapshot) => setCodes(new Map(snapshot.docs.map((d) => [d.id, String(d.data().code || '')]))),
+      () => {},
+    )
+  }, [enabled])
+  return codes
+}
+
+/** Linko do'konlar sinxronining oxirgi natijasi. */
+export function useShopsSyncInfo() {
+  const [info, setInfo] = useState<{ lastSyncAt: string | null; lastReport: string | null }>({ lastSyncAt: null, lastReport: null })
+  useEffect(
+    () =>
+      onSnapshot(
+        doc(db, 'settings', 'shops'),
+        (snap) => setInfo({
+          lastSyncAt: typeof snap.data()?.lastSyncAt === 'string' ? snap.data()?.lastSyncAt : null,
+          lastReport: typeof snap.data()?.lastReport === 'string' ? snap.data()?.lastReport : null,
+        }),
+        () => {},
+      ),
+    [],
+  )
+  return info
 }
