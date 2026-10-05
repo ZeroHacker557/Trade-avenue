@@ -5,6 +5,7 @@ import {
 import { userLang, type Lang } from '../i18n.js'
 import { restoreStock } from '../stock.js'
 import { pushOrderSafe } from './linko-orders.js'
+import { onOrderClosed, onOrderDelivered } from '../ledger.js'
 import { refreshCourierLocation } from './location.js'
 import type { Staff } from '../admin-auth.js'
 import { courierPhone, shiftActive } from '../courier-staff.js'
@@ -435,9 +436,16 @@ export async function applyStatusEffects(
     await clearDispatchButtons(orderId, order, options.closeLabel ?? `❌ ${status}`)
     // Buyurtma yopildi — band qilingan miqdor omborga qaytadi
     await restoreStock(orderId)
+    // Ishlatilgan keshbek do'konga qaytadi
+    await onOrderClosed(orderId, now).catch((error) => console.error('[ledger] keshbek qaytmadi:', error))
   } else if (status === 'Yetkazilmoqda' || status === 'Yetkazildi') {
     // Boshqa kuryerlardagi nusxa «… oldi» ga aylanadi va tugmasi o'chadi
     await updateCourierMessages(orderId, order, status)
+  }
+
+  // Yetkazildi — nasiya qarzga yoziladi, keshbek beriladi (bir marta)
+  if (status === 'Yetkazildi') {
+    await onOrderDelivered(orderId, now).catch((error) => console.error('[ledger] hisobga yozilmadi:', error))
   }
 
   /*

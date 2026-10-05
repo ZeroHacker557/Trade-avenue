@@ -97,6 +97,9 @@ export const AUDIT_LABELS: Record<string, string> = {
   'shops.unbind': 'Akkaunt do‘kondan uzildi',
   'shops.active': 'Do‘kon bloki',
   'shops.delete': 'Do‘kon o‘chirildi',
+  'shops.credit': 'Nasiya chegarasi',
+  'ledger.payment': 'Qarz to‘lovi qabul qilindi',
+  'ledger.adjust': 'Hisob tuzatildi',
 }
 
 /** Panel filtri: guruh → amal nomlari yoki prefikslari. */
@@ -104,7 +107,7 @@ export const AUDIT_GROUPS: Record<string, string[]> = {
   orders: ['order.status', 'order.assign', 'order.linkoPush', 'courier.', 'take', 'deliver', 'arrived', 'problem', 'shift', 'cash.'],
   catalog: ['product.', 'category.', 'section.', 'promotion.', 'promo.', 'ad.', 'home.', 'catalog.', 'order.sort'],
   messages: ['broadcast.', 'channel.', 'template.', 'schedule.', 'support.', 'daily.'],
-  staff: ['staff.', 'session.', 'shops.'],
+  staff: ['staff.', 'session.', 'shops.', 'ledger.'],
   system: ['settings.', 'linko.', 'backup.'],
 }
 

@@ -8,6 +8,7 @@ import { isSource } from './_lib/campaigns.js'
 import { bestPromotion, promoPrice, readPromotion } from './_lib/promotions.js'
 import { tierPercent } from './_lib/tiers.js'
 import { deliveryDate, ruleFor } from './_lib/delivery-date.js'
+import { creditState, entry } from './_lib/ledger.js'
 import { formatDailyNumber, tashkentDay } from './_lib/order-number.js'
 import { formatPhone, readShop, shopOpen, shopPhones, type ShopDoc } from './_lib/shops.js'
 
@@ -28,7 +29,7 @@ type IncomingOrder = {
     address: string
     location: { lat: number; lng: number } | null
     comment: string
-    paymentMethod: 'Naqd' | 'Karta'
+    paymentMethod: 'Naqd' | 'Karta' | 'Nasiya'
     /** Buyurtmani boshqa odam oladigan bo'lsa. */
     recipientName?: string
     recipientPhone?: string
@@ -36,6 +37,8 @@ type IncomingOrder = {
   promoCode?: string
   /** Takroriy buyurtmani to'sish uchun mijoz yaratadigan noyob kalit. */
   clientOrderId?: string
+  /** Do'konning keshbekidan foydalanish. */
+  useCashback?: boolean
   /** Mijoz qaysi kanal e'loni / ommaviy xabardan kelgan (campaigns.ts). */
   source?: string
 }
@@ -58,7 +61,9 @@ function readOrder(body: unknown): IncomingOrder {
   const phone = String(customer.phone || '').trim()
   if (!name || !phone) throw new Error("Ism va telefon to'ldirilishi shart")
 
-  const paymentMethod = customer.paymentMethod === 'Karta' ? 'Karta' : 'Naqd'
+  const paymentMethod = customer.paymentMethod === 'Karta' || customer.paymentMethod === 'Nasiya'
+    ? customer.paymentMethod
+    : 'Naqd'
 
   return {
     shopId: shopId.slice(0, 80),
@@ -87,6 +92,7 @@ function readOrder(body: unknown): IncomingOrder {
     },
     promoCode: b?.promoCode ? String(b.promoCode).trim().toUpperCase().slice(0, 40) : undefined,
     clientOrderId: b?.clientOrderId ? String(b.clientOrderId).slice(0, 64) : undefined,
+    useCashback: b?.useCashback === true,
     source: isSource(b?.source) ? b.source : undefined,
   }
 }
@@ -147,6 +153,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   order.customer.location = shop.location
 
   /*
+   * Nasiya: do'konga chegara berilgan bo'lishi, muddati o'tgan qarzi
+   * bo'lmasligi shart. Chegara yakuniy summa ma'lum bo'lgach (pastda)
+   * tekshiriladi: qarz + kutilayotgan nasiya + shu buyurtma ≤ chegara.
+   */
+  let creditRoom = 0
+  if (order.customer.paymentMethod === 'Nasiya') {
+    const limit = Math.max(0, Number(shopSnap.data()?.creditLimit) || 0)
+    if (!limit) return fail(res, 400, 'Bu do‘kon uchun nasiya yoqilmagan', 'CREDIT_DISABLED')
+    const balance = Number(shopSnap.data()?.balance) || 0
+    const credit = await creditState(shop.id, balance)
+    if (credit.overdue > 0) {
+      return fail(res, 400, 'Muddati o‘tgan qarz bor — avval uni to‘lang', 'CREDIT_OVERDUE', { amount: credit.overdue })
+    }
+    creditRoom = Math.max(0, limit - balance - credit.pending)
+  }
+
+  /*
    * Karta (o'tkazma): to'lov cheki buyurtma bilan BIRGA keladi — mijoz
    * «Buyurtma berish» ni bosganda chekni yuklaydi, shundan keyingina
    * buyurtma yaratiladi va adminga chek rasmi bilan boradi.
@@ -185,6 +208,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const deliveryRef = db.collection('settings').doc('delivery')
       const deliverySnap = await tx.get(deliveryRef)
+
+      // Do'kon — keshbek qoldig'i (tranzaksiya ichida, yangi holat)
+      const shopTxRef = db.collection('shops').doc(shop.id)
+      const shopTx = order.useCashback ? (await tx.get(shopTxRef)).data() : null
 
       // Do'konning narxlar ro'yxati (Linko) — bo'lmasa mahsulotning asosiy narxi
       const listSnap = shop.priceListId > 0
@@ -365,7 +392,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const freeFrom = Math.max(Number(delivery?.freeFrom) || 0, 0)
       const appliedDelivery = freeFrom > 0 && discountedSubtotal >= freeFrom ? 0 : deliveryFee
 
-      const total = discountedSubtotal + appliedDelivery
+      /*
+       * Keshbek — buyurtma summasidan ayiriladi (promokod kabi). Do'kon
+       * hujjati shu tranzaksiyada o'qiladi: bir vaqtdagi ikki buyurtma
+       * bitta keshbekni ikki marta ishlata olmaydi.
+       */
+      const beforeCashback = discountedSubtotal + appliedDelivery
+      const cashbackUsed = order.useCashback
+        ? Math.min(Math.max(0, Math.round(Number(shopTx?.cashback) || 0)), beforeCashback)
+        : 0
+      const total = beforeCashback - cashbackUsed
+
+      if (order.customer.paymentMethod === 'Nasiya' && total > creditRoom) {
+        throw new Error(`CREDIT_LIMIT:${creditRoom}`)
+      }
 
       // Yetkazish sanasi — oxirgi vaqt va kunlar bo'yicha (do'konniki ustun)
       const deliveryOn = deliveryDate(ruleFor(delivery, shop.deliveryDays), createdAt.getTime())
@@ -389,6 +429,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const userData = userSnap.data() || {}
       const orderRef = db.collection('orders').doc()
 
+      // Ishlatilgan keshbek do'kon hisobidan yechiladi (buyurtma bekor bo'lsa qaytadi)
+      if (cashbackUsed > 0) {
+        const left = Math.round(Number(shopTx?.cashback) || 0) - cashbackUsed
+        tx.update(shopTxRef, { cashback: left, updatedAt: createdAt.toISOString() })
+        tx.set(db.collection('ledger').doc(), entry(shop.id, 'cashback', -cashbackUsed, 'spend', left, createdAt.toISOString(), {
+          orderId: orderRef.id, orderLabel: `${orderNumber} · ${orderDay.split('-').reverse().join('.')}`,
+        }))
+      }
+
       tx.set(orderRef, {
         orderNumber,
         orderDay,
@@ -402,6 +451,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         deliveryFee: appliedDelivery,
         total,
         deliveryDate: deliveryOn,
+        ...(cashbackUsed > 0 ? { cashbackUsed } : {}),
         status: 'Yangi',
         paymentMethod: order.customer.paymentMethod,
         paymentStatus: order.customer.paymentMethod === 'Naqd' ? null : 'Kutilmoqda',
@@ -468,6 +518,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error) {
     const raw = error instanceof Error ? error.message : ''
+
+    // CREDIT_LIMIT:250000 — nasiyaga qancha joy qolgani
+    if (raw.startsWith('CREDIT_LIMIT:')) {
+      const amount = Number(raw.split(':')[1]) || 0
+      return fail(res, 400, `Nasiya chegarasi yetmaydi — mavjud: ${amount.toLocaleString('uz-UZ')} so'm`, 'CREDIT_LIMIT', { amount })
+    }
 
     // MIN_ORDER:150000 — summa xabarga ham, ilovaga ham kerak
     if (raw.startsWith('MIN_ORDER:')) {

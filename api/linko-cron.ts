@@ -4,6 +4,7 @@ import { linkoProbe } from './_lib/linko.js'
 import { endExpiredShifts } from './_lib/actions/shift.js'
 import { linkoPushOrders } from './_lib/actions/linko-orders.js'
 import { shopsSync } from './_lib/actions/shops.js'
+import { creditReminders } from './_lib/actions/ledger.js'
 import { fail } from './_lib/http.js'
 import { runTasks } from './_lib/actions/scheduler.js'
 
@@ -70,6 +71,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     orders = { error: error instanceof Error ? error.message : 'xato' }
   }
 
+  // Muddati o'tgan qarz eslatmasi — kuniga bir marta (ichida 20 soatlik to'siq bor)
+  let reminders: Record<string, unknown>
+  try {
+    reminders = await creditReminders()
+  } catch (error) {
+    console.error('[linko-cron] qarz eslatmasi ketmadi:', error)
+    reminders = { error: error instanceof Error ? error.message : 'xato' }
+  }
+
   // Do'konlar (Linko markets) — yangi va o'zgarganlari; yiqilsa katalog sinxroni davom etadi
   let shops: Record<string, unknown>
   try {
@@ -81,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const result = await linkoPull(null, { full: req.query.full === '1' })
-    return res.status(200).json({ ...result, shifts, orders, shops })
+    return res.status(200).json({ ...result, shifts, orders, shops, reminders })
   } catch (error) {
     // Sinxron yiqilsa do'kon ishlashda davom etadi — faqat log va 200 emas 500
     console.error('[linko-cron] xato:', error)

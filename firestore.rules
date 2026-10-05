@@ -93,6 +93,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Hisob-kitob (nasiya, keshbek): do'konchi faqat o'z do'koniniki
+    match /ledger/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.shopId in myShops());
+      allow write: if false;   // faqat server
+    }
+
     // Narxlar ro'yxati: do'konchi faqat o'z do'konining ro'yxatini ko'radi
     // (`pl` claim — api/_lib/shops.ts). Boshqa do'konlar narxi yopiq.
     match /price_lists/{listId} {

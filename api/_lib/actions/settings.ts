@@ -40,6 +40,16 @@ export async function settingsSave(actor: Staff, body: Record<string, unknown>) 
     return { ok: true }
   }
 
+  // Keshbek: yetkazilgan buyurtmadan foiz (api/_lib/ledger.ts)
+  if (section === 'cashback') {
+    const percent = Math.round(Number(body.percent) * 10) / 10
+    if (!Number.isFinite(percent) || percent < 0 || percent > 20) throw new Error('Foiz 0 dan 20 gacha bo‘lsin')
+    const enabled = body.enabled === true
+    if (enabled && percent <= 0) throw new Error('Keshbek foizini kiriting')
+    await db.collection('settings').doc('cashback').set({ enabled, percent, updatedAt: new Date().toISOString() }, { merge: true })
+    return { ok: true }
+  }
+
   // Kompaniya rekvizitlari — nakladnoy va marshrut varaqasida chiqadi
   if (section === 'company') {
     const field = (key: string, max: number) => text(body[key]).slice(0, max)

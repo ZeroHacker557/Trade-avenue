@@ -35,6 +35,7 @@ import { auditList } from '../_lib/audit.js'
 import {
   shopCode, shopCodesAll, shopDelete, shopSave, shopSetActive, shopsSync, shopUnbind,
 } from '../_lib/actions/shops.js'
+import { ledgerAdjust, ledgerPayment, shopCredit } from '../_lib/actions/ledger.js'
 
 type Body = Record<string, unknown>
 
@@ -98,6 +99,10 @@ const HANDLERS: Record<string, Handler> = {
   'shops.unbind': (staff, body) => (requireShopAccess(staff), shopUnbind(staff, body)),
   'shops.active': (staff, body) => (requireShopAccess(staff), shopSetActive(staff, body)),
   'shops.delete': (staff, body) => (requireShopAccess(staff), shopDelete(staff, body)),
+  // Hisob-kitob: nasiya chegarasi, to'lovlar, tuzatishlar
+  'shops.credit': (staff, body) => (requireShopAccess(staff), shopCredit(staff, body)),
+  'ledger.payment': (staff, body) => (requireShopAccess(staff), ledgerPayment(staff, body)),
+  'ledger.adjust': (staff, body) => (requireShopAccess(staff), ledgerAdjust(staff, body)),
 
   // Odamlar
   'staff.save': staffSave,
