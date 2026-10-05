@@ -39,11 +39,11 @@ BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
 # Linko katalogini sinxronlash uchun /api/linko-cron kaliti.
 # Bo'sh bo'lsa bot sinxronni chaqirmaydi (Vercel cron baribir ishlaydi).
 CRON_SECRET  = os.environ.get("CRON_SECRET", "")
-BOT_USERNAME = "tradeavenue_bot"   # TODO: haqiqiy bot username
-# Egalar (Telegram ID) — panel orqali o'chirib bo'lmaydi. TODO: egasining ID si
-ADMIN_IDS    = {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
+BOT_USERNAME = "tradeavenue_uzbot"
+# Egalar (Telegram ID) — panel orqali o'chirib bo'lmaydi. Qo'shimchalari: .env → ADMIN_IDS
+ADMIN_IDS    = {7203124812} | {int(x) for x in os.environ.get("ADMIN_IDS", "").replace(" ", "").split(",") if x}
 # BotFather /setdomain da ham aynan shu domen ko'rsatilgan bo'lishi kerak.
-MINI_APP_URL = os.environ.get("MINI_APP_URL", "https://trade-avenue.vercel.app")
+MINI_APP_URL = os.environ.get("MINI_APP_URL", "https://tradeavenue-six.vercel.app")
 # Admin panel — o'sha domendagi alohida sahifa. Bot uni faqat
 # adminlarga ko'rsatadi va u Telegram oynasida to'liq ekranda ochiladi.
 ADMIN_PANEL_URL = f"{MINI_APP_URL}/admin.html"
@@ -62,11 +62,11 @@ WORK_HOURS       = "09:00 — 18:00"
 # Service account JSON fayli (loyiha ildizida yoki bot/ papkasida).
 # Firebase Console → Project Settings → Service accounts →
 # "Generate new private key". Fayl .gitignore'da.
-FIREBASE_KEY_FILE       = os.environ.get("FIREBASE_KEY_FILE", "trade-avenue-firebase-adminsdk.json")
+FIREBASE_KEY_FILE       = os.environ.get("FIREBASE_KEY_FILE", "trade-avenue-e0e85-firebase-adminsdk-fbsvc-11b3491e40.json")
 # Storage bucket — mahsulot rasmlari shu yerga yuklanadi.
 # Console → Storage → bucket nomi (odatda <project-id>.firebasestorage.app).
 # src/config/firebase.ts dagi storageBucket bilan bir xil bo'lishi shart.
-FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "trade-avenue.firebasestorage.app")
+FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "trade-avenue-e0e85.firebasestorage.app")
 
 # ── Server ──
 API_HOST     = "0.0.0.0"

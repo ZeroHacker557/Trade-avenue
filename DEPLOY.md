@@ -49,8 +49,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    Rules bo'limiga joylab **Publish** qiling.
 4. **Storage** yoqing va [`storage.rules`](./storage.rules) ni joylang.
 
+Qoidalar va boshlang'ich sozlamalar (keshbek 0%, yetkazish jadvali) — Firebase CLI'siz,
+service account bilan (qayta ishga tushirsa xavfsiz, mavjud sozlamalarni bosmaydi):
+
 ```bash
-firebase deploy --only firestore:rules,storage
+node scripts/setup-firebase.mjs
 ```
 
 ## 2. Vercel

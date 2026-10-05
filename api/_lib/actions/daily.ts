@@ -231,7 +231,7 @@ function caption(intro: string, products: Picked[], ru: boolean): string {
 
 async function build(settings: DailySettings, exclude: string[]) {
   const [products, note] = await Promise.all([pickProducts(exclude, settings.chosen, settings.count), deliveryNote()])
-  const bot = String(process.env.BOT_USERNAME || 'tradeavenue_bot').replace(/^@/, '')
+  const bot = String(process.env.BOT_USERNAME || 'tradeavenue_uzbot').replace(/^@/, '')
   const png = await renderCard({
     products,
     title: settings.title,

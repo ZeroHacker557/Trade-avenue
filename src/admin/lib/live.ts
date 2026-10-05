@@ -423,6 +423,8 @@ export type AllSettings = {
   company: CompanySettings
   /** «Biz bilan aloqa» — mini app «Yordam» sahifasi va bot. */
   contact: ContactInfo
+  /** Keshbek — yetkazilgan buyurtmadan foiz (api/_lib/ledger.ts). */
+  cashback: { enabled: boolean; percent: number }
 }
 
 export type CompanySettings = {
@@ -447,6 +449,7 @@ const SETTINGS_FALLBACK: AllSettings = {
   },
   company: { legalName: '', inn: '', address: '', phone: '', bank: '', account: '', mfo: '', director: '' },
   contact: DEFAULT_CONTACT,
+  cashback: { enabled: false, percent: 0 },
 }
 
 /** Linko katalogining nusxasi — `linko_products` (server yozadi). */
@@ -524,7 +527,7 @@ export function useSettings() {
   const [settings, setSettings] = useState<AllSettings>(SETTINGS_FALLBACK)
 
   useEffect(() => {
-    const sections = ['payment', 'delivery', 'courier', 'linko', 'company', 'contact'] as const
+    const sections = ['payment', 'delivery', 'courier', 'linko', 'company', 'contact', 'cashback'] as const
     const unsubs = sections.map((section) =>
       onSnapshot(
         doc(db, 'settings', section),

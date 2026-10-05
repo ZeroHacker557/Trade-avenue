@@ -21,7 +21,7 @@ export type CardInput = {
   title: string
   /** Sarlavhaning amber qatori: «ULGURJI NARXLARDA». */
   accent: string
-  /** Pastki chap: «@tradeavenue_bot». */
+  /** Pastki chap: «@tradeavenue_uzbot». */
   footer: string
   /** Pastki o‘ng: «Yetkazish 15 000 so‘m». */
   footerNote: string

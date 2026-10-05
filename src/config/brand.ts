@@ -15,8 +15,8 @@ export const BRAND = {
   tagline: 'Do‘konlar uchun ulgurji savdo',
   taglineRu: 'Оптовые закупки для магазинов',
 
-  /** Telegram bot — mini app shu bot ichida ochiladi. TODO: haqiqiy username. */
-  botUsername: 'tradeavenue_bot',
+  /** Telegram bot — mini app shu bot ichida ochiladi. */
+  botUsername: 'tradeavenue_uzbot',
 
   /** Mijozlar xizmati — standart; amaldagisi admin panelda (src/config/contact.ts). */
   phone: '+998 00 000 00 00',

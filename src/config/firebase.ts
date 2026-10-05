@@ -13,15 +13,13 @@
  * (bot/config.py → FIREBASE_KEY_FILE) bilan BIR XIL loyihaga tegishli
  * bo'lishi shart. Aks holda bot bir bazaga yozadi, ilova boshqasidan
  * o'qiydi va katalog bo'sh ko'rinadi.
- *
- * TODO(Trade Avenue): yangi Firebase loyihasi ochilgach shu qiymatlarni
- * to'ldiring. Hozirgilari — hech qayerga ulanmaydigan shablon.
  */
 export const firebaseConfig = {
-  apiKey: 'TODO-firebase-api-key',
-  authDomain: 'trade-avenue.firebaseapp.com',
-  projectId: 'trade-avenue',
-  storageBucket: 'trade-avenue.firebasestorage.app',
-  messagingSenderId: '000000000000',
-  appId: '1:000000000000:web:0000000000000000000000',
+  apiKey: 'AIzaSyDy7Wjb_PPi-itFallEin4RPUsWRe2wdgU',
+  authDomain: 'trade-avenue-e0e85.firebaseapp.com',
+  projectId: 'trade-avenue-e0e85',
+  storageBucket: 'trade-avenue-e0e85.firebasestorage.app',
+  messagingSenderId: '274940114788',
+  appId: '1:274940114788:web:aea7325afb056905526c71',
+  measurementId: 'G-M8D6R3C98R',
 }

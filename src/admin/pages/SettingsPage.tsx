@@ -1,9 +1,10 @@
-import { Building2, CreditCard, Headphones, Loader2, Send, Truck, Users2 } from 'lucide-react'
+import { BadgePercent, Building2, CreditCard, Headphones, Loader2, Send, Truck, Users2 } from 'lucide-react'
 import { useState } from 'react'
 import { apiPost } from '../lib/api'
 import { useSettings, type CompanySettings } from '../lib/live'
 import type { ContactInfo } from '../../config/contact'
 import { useToast } from '../components/Toast'
+import { formatPrice } from '../../data'
 import { WeekdayPicker } from '../components/WeekdayPicker'
 
 export function SettingsPage() {
@@ -43,6 +44,12 @@ export function SettingsPage() {
           key={`del:${settings.delivery.fee}|${settings.delivery.freeFrom}|${settings.delivery.minOrder}|${settings.delivery.cutoff}|${(settings.delivery.days ?? []).join(',')}`}
           settings={settings.delivery}
           busy={busy === 'delivery'}
+          onSave={save}
+        />
+        <CashbackCard
+          key={`cb:${settings.cashback.enabled}|${settings.cashback.percent}`}
+          settings={settings.cashback}
+          busy={busy === 'cashback'}
           onSave={save}
         />
         <CourierCard
@@ -441,6 +448,51 @@ function ContactCard({ settings, busy, onSave }: { settings: ContactInfo; busy: 
  * Kompaniya rekvizitlari — nakladnoy (yuk xati) va marshrut varaqasida
  * «Yetkazib beruvchi» sifatida chiqadi. Bo'sh qolsa brend nomi ishlatiladi.
  */
+/**
+ * Keshbek: yetkazilgan har buyurtmadan do'kon hisobiga foiz. Do'kon uni
+ * keyingi buyurtmada ishlatadi; bekor qilinsa qaytadi (api/_lib/ledger.ts).
+ */
+function CashbackCard({
+  settings, busy, onSave,
+}: {
+  settings: { enabled: boolean; percent: number }
+  busy: boolean
+  onSave: SaveFn
+}) {
+  const [enabled, setEnabled] = useState(settings.enabled)
+  const [percent, setPercent] = useState(String(settings.percent || 0))
+  const value = Number(percent.replace(',', '.')) || 0
+
+  return (
+    <Section title="Keshbek" icon={BadgePercent} hint="Yetkazilgan buyurtmadan do‘kon hisobiga — keyingi buyurtmada ishlatiladi">
+      <label className="flex items-center justify-between gap-3 text-sm font-bold">
+        <span>Keshbek yoqilgan</span>
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="size-5" />
+      </label>
+      <label className="adm-label mt-3" htmlFor="cb-percent">Foiz (0–20)</label>
+      <input
+        id="cb-percent"
+        className="adm-input"
+        inputMode="decimal"
+        value={percent}
+        onChange={(e) => setPercent(e.target.value.replace(/[^\d.,]/g, '').slice(0, 4))}
+      />
+      <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
+        {enabled && value > 0
+          ? `1 000 000 so‘mlik buyurtmadan ${formatPrice(Math.round(10_000 * value))} keshbek`
+          : 'O‘chiq — do‘konlarga keshbek yozilmaydi.'}
+      </p>
+      <button
+        className="adm-btn adm-btn--primary mt-4 w-full"
+        disabled={busy}
+        onClick={() => onSave('cashback', { enabled, percent: value })}
+      >
+        {busy ? <Loader2 size={16} className="animate-spin" /> : null} Saqlash
+      </button>
+    </Section>
+  )
+}
+
 function CompanyCard({ settings, busy, onSave }: { settings: CompanySettings; busy: boolean; onSave: SaveFn }) {
   const [form, setForm] = useState<CompanySettings>(settings)
   const set = (key: keyof CompanySettings, value: string) => setForm({ ...form, [key]: value })
