@@ -116,7 +116,7 @@ export async function creditReminders(): Promise<{ reminded: number }> {
     const { overdue } = await creditState(doc.id, Number(shop.balance) || 0, now)
     if (overdue <= 0) continue
     const members = Array.isArray(shop.memberIds) ? shop.memberIds.map(String) : []
-    const amount = overdue.toLocaleString('ru-RU').replace(/ /g, ' ')
+    const amount = overdue.toLocaleString('ru-RU').split(String.fromCharCode(160)).join(' ')
     for (const uid of members) {
       const lang = (await userLang(Number(uid))) === 'ru' ? 'ru' : 'uz'
       await sendMessage(Number(uid), REMIND[lang](escapeHtml(String(shop.name || '')), amount)).catch(() => {})
