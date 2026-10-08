@@ -481,7 +481,14 @@ export async function linkoPull(
   const affected = new Set<string>()
 
   for (const id of ids) {
-    const old = existing.get(id) ?? {}
+    const found = existing.get(id) ?? {}
+    /*
+     * To'liq o'qishda Linko'dagi holat — yagona manba: eski qoldiq va
+     * narxlar ustiga qo'shilmaydi (aks holda boshqa serverdan qolgan yoki
+     * Linko'da o'chirilgan qiymat abadiy saqlanib qoladi). Faqat katalog
+     * bilan bog'lanish saqlanadi.
+     */
+    const old: Partial<MirrorDoc> = full ? { productIds: found.productIds, productId: found.productId } : found
     const info = infoById.get(id)
 
     /*
@@ -503,7 +510,7 @@ export async function linkoPull(
 
     // Hech narsa o'zgarmagan — qayta yozilmaydi (mahsulot ham qayta hisoblanmaydi)
     const name = text(info?.name) || text(old.name)
-    const unchanged = existing.has(id)
+    const unchanged = !full && existing.has(id)
       && num(old.price) === price
       && num(old.stock) === stock
       && JSON.stringify(old.prices ?? {}) === JSON.stringify(listPrices)

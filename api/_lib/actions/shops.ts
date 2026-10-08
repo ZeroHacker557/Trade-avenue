@@ -122,6 +122,13 @@ export async function shopsSync(_staff: Staff | null, body: Body = {}) {
 
   const userName = new Map(users.map((u) => [u.id, [u.first_name, u.second_name].filter(Boolean).join(' ').trim()]))
   const listName = new Map(priceLists.map((p) => [p.id, str(p.name)]))
+  /*
+   * Linko `markets/` javobida narx ro'yxati yo'q — faqat mijoz turi
+   * («Розничный», «Рынок»...). Shuning uchun ro'yxat turga NOMI bo'yicha
+   * bog'lanadi: «Рынок» turidagi do'kon → «Рынок» narx ro'yxati. Mos nom
+   * bo'lmasa — 0 (asosiy narx: Sozlamalar → Linko → asosiy ro'yxat).
+   */
+  const listByName = new Map(priceLists.map((p) => [str(p.name).toLowerCase(), p.id]))
 
   const now = new Date().toISOString()
   const shops = markets.filter((m) => m?.id && !isConsumer(m))
@@ -135,7 +142,7 @@ export async function shopsSync(_staff: Staff | null, body: Body = {}) {
   const writes = shops.map((market) => {
     const id = String(market.id)
     const agentId = refId(market.responsible_agent)
-    const priceListId = refId(market.price_list)
+    const priceListId = refId(market.price_list) || listByName.get(refName(market.market_type).toLowerCase()) || 0
     return {
       ref: db.collection('shops').doc(id),
       data: {
